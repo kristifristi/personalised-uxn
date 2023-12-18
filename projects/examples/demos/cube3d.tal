@@ -26,7 +26,7 @@
 	( | clear )
 	#0000 DUP2 .Screen/x DEO2
 	.Screen/y DEO2
-	#80 .Screen/pixel DEO
+	[ LIT2 80 -Screen/pixel ] DEO
 	( | draw )
 	.timer LDZk INC SWP STZ
 	<draw-cube>
@@ -36,7 +36,7 @@
 	( | create box )
 	#0800
 	&loop ( -- )
-		STHk #00 .timer LDZ #00 STHkr INC #07 AND #60 SFT ADD2 #00ff AND2 ;table ADD2 LDA #01 SFT #00 .timer LDZ #00 STHkr #60 SFT ADD2 #00ff AND2 ;table ADD2 LDA #02 SFT #00 STHkr #62 SFT2 ADD2 .cube/v0 STHr DUP ADD ADD STZ2
+		STHk [ LIT2 00 -timer ] LDZ #00 STHkr INC #07 AND #60 SFT ADD2 #00ff AND2 ;table ADD2 LDA #01 SFT #00 .timer LDZ #00 STHkr #60 SFT ADD2 #00ff AND2 ;table ADD2 LDA #02 SFT #00 STHkr #62 SFT2 ADD2 .cube/v0 STHr DUP ADD ADD STZ2
 		INC GTHk ?&loop
 	POP2
 	( | vertices )
@@ -65,7 +65,7 @@
 	#00 SWP #0004 SUB2 .center/y LDZ2 ADD2 .Screen/y DEO2
 	#00 SWP #0003 SUB2 .center/x LDZ2 ADD2 .Screen/x DEO2
 	;&icn .Screen/addr DEO2
-	#05 .Screen/sprite DEO
+	[ LIT2 05 -Screen/sprite ] DEO
 	JMP2r
 	&icn [ 0000 387c 7c7c 3800 ]
 

@@ -30,12 +30,12 @@
 	#00 draw-dvd
 	( | x )
 	.dvd/x LDZ2
-	( left ) DUP2 #0000 NEQ2 ?{ #0001 ,&x STR2 }
+	( left ) ORAk ?{ #0001 ,&x STR2 }
 	( right ) DUP2 [ LIT2 &hit-hor $2 ] NEQ2 ?{ #ffff ,&x STR2 }
 	[ LIT2 &x 0001 ] ADD2 .dvd/x STZ2
 	( | y )
 	.dvd/y LDZ2
-	( top ) DUP2 #0000 NEQ2 ?{ #0001 ,&y STR2 }
+	( top ) ORAk ?{ #0001 ,&y STR2 }
 	( bottom ) DUP2 [ LIT2 &hit-ver $2 ] NEQ2 ?{ #ffff ,&y STR2 }
 	[ LIT2 &y 0001 ] ADD2 .dvd/y STZ2
 	#01 draw-dvd BRK
@@ -44,8 +44,7 @@
 	;dvd-icn .Screen/addr DEO2
 	.dvd/x LDZ2 .Screen/x DEO2
 	.dvd/y LDZ2 .Screen/y DEO2
-	.Screen/sprite DEOk
-	DEO
+	.Screen/sprite DEOk DEO
 	JMP2r
 
 @dvd-icn ( 4 x 2 )
