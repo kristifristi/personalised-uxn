@@ -488,7 +488,10 @@ main(int argc, char **argv)
 {
 	Uint8 *ram;
 	char *rom;
+	Uint8 dev[0x100] = {0};
 	Uxn u = {0}, u_audio = {0};
+	u.dev = (Uint8 *)&dev;
+	u_audio.dev = (Uint8 *)&dev;
 	int i = 1;
 	if(i == argc)
 		return system_error("usage", "uxnemu [-v] | uxnemu [-f | -2x | -3x | --] file.rom [args...]");
