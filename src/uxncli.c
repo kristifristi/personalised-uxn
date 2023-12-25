@@ -66,6 +66,8 @@ main(int argc, char **argv)
 {
 	Uxn u = {0};
 	int i = 1;
+	Uint8 dev[0x100] = {0};
+	u.dev = (Uint8 *)&dev;
 	if(i == argc)
 		return system_error("usage", "uxncli [-v] file.rom [args..]");
 	/* Read flags */
