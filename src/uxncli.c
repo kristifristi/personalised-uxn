@@ -8,7 +8,7 @@
 #include "devices/datetime.h"
 
 /*
-Copyright (c) 2021-2023 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2021-2024 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,8 @@ copyright notice and this permission notice appear in all copies.
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
+
+Uxn u;
 
 Uint8
 emu_dei(Uxn *u, Uint8 addr)
@@ -41,45 +43,31 @@ emu_deo(Uxn *u, Uint8 addr, Uint8 value)
 	}
 }
 
-static void
-emu_run(Uxn *u)
-{
-	while(!u->dev[0x0f]) {
-		int c = fgetc(stdin);
-		if(c == EOF) {
-			console_input(u, 0x00, CONSOLE_END);
-			break;
-		}
-		console_input(u, (Uint8)c, CONSOLE_STD);
-	}
-}
-
-static int
-emu_end(Uxn *u)
-{
-	free(u->ram);
-	return u->dev[0x0f] & 0x7f;
-}
-
 int
 main(int argc, char **argv)
 {
-	Uxn u = {0};
 	int i = 1;
 	Uint8 dev[0x100] = {0};
 	u.dev = (Uint8 *)&dev;
 	if(i == argc)
 		return system_error("usage", "uxncli [-v] file.rom [args..]");
-	/* Read flags */
 	if(argv[i][0] == '-' && argv[i][1] == 'v')
 		return system_version("Uxncli - Console Varvara Emulator", "2 Jan 2024");
 	if(!system_init(&u, (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++]))
 		return system_error("Init", "Failed to initialize uxn.");
-	/* Game Loop */
+	/* eval */
 	u.dev[0x17] = argc - i;
 	if(uxn_eval(&u, PAGE_PROGRAM)) {
 		console_listen(&u, i, argc, argv);
-		emu_run(&u);
+		while(!u.dev[0x0f]) {
+			char c = fgetc(stdin);
+			if(c == EOF) {
+				console_input(&u, 0x00, CONSOLE_END);
+				break;
+			}
+			console_input(&u, (Uint8)c, CONSOLE_STD);
+		}
 	}
-	return emu_end(&u);
+	free(u.ram);
+	return u.dev[0x0f] & 0x7f;
 }

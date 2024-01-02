@@ -46,6 +46,8 @@ WITH REGARD TO THIS SOFTWARE.
 #define HEIGHT 40 * 8
 #define TIMEOUT_MS 334
 
+Uxn u;
+
 static SDL_Window *emu_window;
 static SDL_Texture *emu_texture;
 static SDL_Renderer *emu_renderer;
@@ -489,7 +491,7 @@ main(int argc, char **argv)
 	Uint8 *ram;
 	char *rom;
 	Uint8 dev[0x100] = {0};
-	Uxn u = {0}, u_audio = {0};
+	Uxn u_audio = {0};
 	u.dev = (Uint8 *)&dev;
 	u_audio.dev = (Uint8 *)&dev;
 	int i = 1;
