@@ -39,19 +39,14 @@ system_print(Stack *s, char *name)
 	fprintf(stderr, "%s ", name);
 	for(i = 0; i < 9; i++) {
 		Uint8 pos = s->ptr - 4 + i;
-		fprintf(stderr, !pos ? "[%02x]" : i == 4 ? "<%02x>"
-												 : " %02x ",
-			s->dat[pos]);
+		if(!pos)
+			fprintf(stderr, "[%02x]", s->dat[pos]);
+		else if(i == 4)
+			fprintf(stderr, "<%02x>", s->dat[pos]);
+		else
+			fprintf(stderr, " %02x ", s->dat[pos]);
 	}
 	fprintf(stderr, "\n");
-}
-
-int
-system_error(char *msg, const char *err)
-{
-	fprintf(stderr, "%s: %s\n", msg, err);
-	fflush(stderr);
-	return 0;
 }
 
 void
@@ -62,6 +57,14 @@ system_inspect(Uxn *u)
 }
 
 int
+system_error(char *msg, const char *err)
+{
+	fprintf(stderr, "%s: %s\n", msg, err);
+	fflush(stderr);
+	return 0;
+}
+
+int
 system_version(char *name, char *date)
 {
 	printf("%s, %s.\n", name, date);
@@ -69,21 +72,20 @@ system_version(char *name, char *date)
 }
 
 void
-system_boot(Uxn *u, int soft)
+system_zero(Uxn *u, int soft)
 {
 	int i;
-	for(i = 0x100 * soft; i < 0x10000; i++)
+	for(i = PAGE_PROGRAM * soft; i < 0x10000; i++)
 		u->ram[i] = 0;
 	for(i = 0x0; i < 0x100; i++)
 		u->dev[i] = 0;
-	u->wst.ptr = 0;
-	u->rst.ptr = 0;
+	u->wst.ptr = u->rst.ptr = 0;
 }
 
 void
 system_reboot(Uxn *u, char *rom, int soft)
 {
-	system_boot(u, soft);
+	system_zero(u, soft);
 	if(system_load(u, boot_rom))
 		if(uxn_eval(u, PAGE_PROGRAM))
 			boot_rom = rom;
@@ -93,7 +95,7 @@ int
 system_init(Uxn *u, Uint8 *ram, char *rom)
 {
 	u->ram = ram;
-	system_boot(u, 0);
+	system_zero(u, 0);
 	if(!system_load(u, rom))
 		if(!system_load(u, "boot.rom"))
 			return system_error("Init", "Failed to load rom.");
@@ -123,10 +125,11 @@ system_deo(Uxn *u, Uint8 *d, Uint8 port)
 		ram = u->ram;
 		addr = PEEK2(d + 2);
 		if(ram[addr] == 0x1) {
-			Uint16 i, length = PEEK2(ram + addr + 1);
-			Uint16 a_page = PEEK2(ram + addr + 1 + 2), a_addr = PEEK2(ram + addr + 1 + 4);
-			Uint16 b_page = PEEK2(ram + addr + 1 + 6), b_addr = PEEK2(ram + addr + 1 + 8);
-			int src = (a_page % RAM_PAGES) * 0x10000, dst = (b_page % RAM_PAGES) * 0x10000;
+			Uint8 *cmd_addr = ram + addr + 1;
+			Uint16 i, length = PEEK2(cmd_addr);
+			Uint16 a_page = PEEK2(cmd_addr + 2), a_addr = PEEK2(cmd_addr + 4);
+			Uint16 b_page = PEEK2(cmd_addr + 6), b_addr = PEEK2(cmd_addr + 8);
+			int src = (a_page % RAM_PAGES) << 0x10, dst = (b_page % RAM_PAGES) << 0x10;
 			for(i = 0; i < length; i++)
 				ram[dst + (Uint16)(b_addr + i)] = ram[src + (Uint16)(a_addr + i)];
 		}
