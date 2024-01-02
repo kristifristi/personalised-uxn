@@ -10,8 +10,6 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 #define SCREEN_VERSION 1
-#define SCREEN_DEIMASK 0x003c
-#define SCREEN_DEOMASK 0xc028
 
 typedef struct UxnScreen {
 	int width, height, x1, y1, x2, y2;

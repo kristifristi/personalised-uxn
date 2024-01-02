@@ -18,10 +18,8 @@ Uint8
 datetime_dei(Uxn *u, Uint8 addr)
 {
 	time_t seconds = time(NULL);
-	struct tm zt = {0};
-	struct tm *t = localtime(&seconds);
-	if(t == NULL)
-		t = &zt;
+	struct tm zt = {0}, *t = localtime(&seconds);
+	if(t == NULL) t = &zt;
 	switch(addr) {
 	case 0xc0: return (t->tm_year + 1900) >> 8;
 	case 0xc1: return (t->tm_year + 1900);

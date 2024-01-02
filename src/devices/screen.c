@@ -216,36 +216,32 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 	Uint8 *port_x, *port_y, *port_addr;
 	Uint16 x, y, dx, dy, dxy, dyx, addr, addr_incr;
 	switch(port) {
-	case 0x3: {
-		Uint8 *port_width = d + 0x2;
-		screen_resize(PEEK2(port_width), uxn_screen.height);
-	} break;
-	case 0x5: {
-		Uint8 *port_height = d + 0x4;
-		screen_resize(uxn_screen.width, PEEK2(port_height));
-	} break;
+	case 0x3: screen_resize(PEEK2(d + 2), uxn_screen.height); break;
+	case 0x5: screen_resize(uxn_screen.width, PEEK2(d + 4)); break;
 	case 0xe: {
 		Uint8 ctrl = d[0xe];
 		Uint8 color = ctrl & 0x3;
-		Uint8 *layer = (ctrl & 0x40) ? uxn_screen.fg : uxn_screen.bg;
+		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
 		port_x = d + 0x8, port_y = d + 0xa;
-		x = PEEK2(port_x);
-		y = PEEK2(port_y);
+		Uint16 x = PEEK2(port_x), y = PEEK2(port_y);
 		/* fill mode */
 		if(ctrl & 0x80) {
-			Uint16 x2 = uxn_screen.width, y2 = uxn_screen.height;
-			if(ctrl & 0x10) x2 = x, x = 0;
-			if(ctrl & 0x20) y2 = y, y = 0;
-			if(!x && !y && x2 == uxn_screen.width && y2 == uxn_screen.height)
-				screen_fill(layer, color);
+			Uint16 x2, y2;
+			if(ctrl & 0x10)
+				x2 = x, x = 0;
 			else
-				screen_rect(layer, x, y, x2, y2, color);
+				x2 = uxn_screen.width;
+			if(ctrl & 0x20)
+				y2 = y, y = 0;
+			else
+				y2 = uxn_screen.height;
+			screen_rect(layer, x, y, x2, y2, color);
 			screen_change(x, y, x2, y2);
 		}
 		/* pixel mode */
 		else {
-			Uint16 w = uxn_screen.width, h = uxn_screen.height;
-			if(x < w && y < h)
+			Uint16 w = uxn_screen.width;
+			if(x < w && y < uxn_screen.height)
 				layer[x + y * w] = color;
 			screen_change(x, y, x + 1, y + 1);
 			if(d[0x6] & 0x1) POKE2(port_x, x + 1);
@@ -259,8 +255,8 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		Uint8 move = d[0x6];
 		Uint8 length = move >> 4;
 		Uint8 twobpp = !!(ctrl & 0x80);
-		Uint8 *layer = (ctrl & 0x40) ? uxn_screen.fg : uxn_screen.bg;
 		Uint8 color = ctrl & 0xf;
+		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
 		int flipx = (ctrl & 0x10), fx = flipx ? -1 : 1;
 		int flipy = (ctrl & 0x20), fy = flipy ? -1 : 1;
 		port_x = d + 0x8, port_y = d + 0xa;
@@ -281,11 +277,11 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		}
 		screen_change(x, y, x + dyx * length + 8, y + dxy * length + 8);
 		if(move & 0x1) {
-			x = x + dx * fx;
+			x += dx * fx;
 			POKE2(port_x, x);
 		}
 		if(move & 0x2) {
-			y = y + dy * fy;
+			y += dy * fy;
 			POKE2(port_y, y);
 		}
 		if(move & 0x4) POKE2(port_addr, addr); /* auto addr+length */

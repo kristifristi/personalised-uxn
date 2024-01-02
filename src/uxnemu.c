@@ -105,7 +105,7 @@ emu_deo(Uxn *u, Uint8 addr, Uint8 value)
 		if(p > 0x7 && p < 0xe) screen_palette(&u->dev[0x8]);
 		break;
 	case 0x10: console_deo(&u->dev[d], p); break;
-	case 0x20: screen_deo(u->ram, &u->dev[d], p); break;
+	case 0x20: screen_deo(u->ram, &u->dev[0x20], p); break;
 	case 0x30: audio_deo(0, &u->dev[d], p, u); break;
 	case 0x40: audio_deo(1, &u->dev[d], p, u); break;
 	case 0x50: audio_deo(2, &u->dev[d], p, u); break;
