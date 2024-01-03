@@ -198,9 +198,9 @@ screen_redraw(Uxn *u)
 			pixels[i] = palette[fg[i] << 2 | bg[i]];
 }
 
-/* cache */
+/* screen registers */
 
-static Uint16 rX, rY, rA, rMX, rMY, rMA, rML;
+static Uint16 rX, rY, rA, rMX, rMY, rMA, rML, rDX, rDY;
 
 Uint8
 screen_dei(Uxn *u, Uint8 addr)
@@ -223,17 +223,16 @@ screen_dei(Uxn *u, Uint8 addr)
 void
 screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 {
-	Uint16 dx, dy, dxy, dyx, addr_incr;
 	switch(port) {
-	case 0x3: screen_resize(PEEK2(d + 2), uxn_screen.height); break;
-	case 0x5: screen_resize(uxn_screen.width, PEEK2(d + 4)); break;
-	case 0x6: rMX = d[0x6] & 0x1, rMY = d[0x6] & 0x2, rMA = d[0x6] & 0x4, rML = d[0x6] >> 4; break;
+	case 0x3: screen_resize(PEEK2(d + 2), uxn_screen.height); return;
+	case 0x5: screen_resize(uxn_screen.width, PEEK2(d + 4)); return;
+	case 0x6: rMX = d[0x6] & 0x1, rMY = d[0x6] & 0x2, rMA = d[0x6] & 0x4, rML = d[0x6] >> 4, rDX = rMX << 3, rDY = rMY << 2; return;
 	case 0x8:
-	case 0x9: rX = (d[0x8] << 8) | d[0x9]; break;
+	case 0x9: rX = (d[0x8] << 8) | d[0x9]; return;
 	case 0xa:
-	case 0xb: rY = (d[0xa] << 8) | d[0xb]; break;
+	case 0xb: rY = (d[0xa] << 8) | d[0xb]; return;
 	case 0xc:
-	case 0xd: rA = (d[0xc] << 8) | d[0xd]; break;
+	case 0xd: rA = (d[0xc] << 8) | d[0xd]; return;
 	case 0xe: {
 		Uint8 ctrl = d[0xe];
 		Uint8 color = ctrl & 0x3;
@@ -261,7 +260,7 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 			if(rMX) rX++;
 			if(rMY) rY++;
 		}
-		break;
+		return;
 	}
 	case 0xf: {
 		Uint8 i;
@@ -271,24 +270,17 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
 		int fx = ctrl & 0x10 ? -1 : 1;
 		int fy = ctrl & 0x20 ? -1 : 1;
-		dx = rMX << 3, dxy = dx * fy;
-		dy = rMY << 2, dyx = dy * fx;
-		addr_incr = rMA << (1 + twobpp);
-		if(twobpp) {
-			for(i = 0; i <= rML; i++) {
+		Uint16 dxy = rDX * fy, dyx = rDY * fx, addr_incr = rMA << (1 + twobpp);
+		if(twobpp)
+			for(i = 0; i <= rML; i++, rA += addr_incr)
 				screen_2bpp(layer, &ram[rA], rX + dyx * i, rY + dxy * i, color, fx, fy);
-				rA += addr_incr;
-			}
-		} else {
-			for(i = 0; i <= rML; i++) {
+		else
+			for(i = 0; i <= rML; i++, rA += addr_incr)
 				screen_1bpp(layer, &ram[rA], rX + dyx * i, rY + dxy * i, color, fx, fy);
-				rA += addr_incr;
-			}
-		}
 		screen_change(rX, rY, rX + dyx * rML + 8, rY + dxy * rML + 8);
-		if(rMX) rX += dx * fx;
-		if(rMY) rY += dy * fy;
-		break;
+		if(rMX) rX += rDX * fx;
+		if(rMY) rY += rDY * fy;
+		return;
 	}
 	}
 }
