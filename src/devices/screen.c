@@ -198,6 +198,10 @@ screen_redraw(Uxn *u)
 			pixels[i] = palette[fg[i] << 2 | bg[i]];
 }
 
+/* cache */
+
+static Uint16 rX, rY, rA;
+
 Uint8
 screen_dei(Uxn *u, Uint8 addr)
 {
@@ -206,6 +210,12 @@ screen_dei(Uxn *u, Uint8 addr)
 	case 0x23: return uxn_screen.width;
 	case 0x24: return uxn_screen.height >> 8;
 	case 0x25: return uxn_screen.height;
+	case 0x28: return rX >> 8;
+	case 0x29: return rX;
+	case 0x2a: return rY >> 8;
+	case 0x2b: return rY;
+	case 0x2c: return rA >> 8;
+	case 0x2d: return rA;
 	default: return u->dev[addr];
 	}
 }
@@ -213,42 +223,43 @@ screen_dei(Uxn *u, Uint8 addr)
 void
 screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 {
-	Uint8 *port_x, *port_y, *port_addr;
-	Uint16 x, y, dx, dy, dxy, dyx, addr, addr_incr;
+	Uint16 dx, dy, dxy, dyx, addr_incr;
 	switch(port) {
 	case 0x3: screen_resize(PEEK2(d + 2), uxn_screen.height); break;
 	case 0x5: screen_resize(uxn_screen.width, PEEK2(d + 4)); break;
+	case 0x8:
+	case 0x9: rX = (d[0x8] << 8) | d[0x9]; break;
+	case 0xa:
+	case 0xb: rY = (d[0xa] << 8) | d[0xb]; break;
+	case 0xc:
+	case 0xd: rA = (d[0xc] << 8) | d[0xd]; break;
 	case 0xe: {
 		Uint8 ctrl = d[0xe];
 		Uint8 color = ctrl & 0x3;
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
-		port_x = d + 0x8;
-		port_y = d + 0xa;
 		/* fill mode */
 		if(ctrl & 0x80) {
-			Uint16 x2, y2;
+			Uint16 x1, y1, x2, y2;
 			if(ctrl & 0x10)
-				x = 0, x2 = PEEK2(port_x);
+				x1 = 0, x2 = rX;
 			else
-				x = PEEK2(port_x), x2 = uxn_screen.width;
+				x1 = rX, x2 = uxn_screen.width;
 			if(ctrl & 0x20)
-				y = 0, y2 = PEEK2(port_y);
+				y1 = 0, y2 = rY;
 			else
-				y = PEEK2(port_y), y2 = uxn_screen.height;
-			screen_rect(layer, x, y, x2, y2, color);
-			screen_change(x, y, x2, y2);
+				y1 = rY, y2 = uxn_screen.height;
+			screen_rect(layer, x1, y1, x2, y2, color);
+			screen_change(x1, y1, x2, y2);
 		}
 		/* pixel mode */
 		else {
 			Uint8 move = d[0x6];
 			Uint16 w = uxn_screen.width;
-			x = PEEK2(port_x);
-			y = PEEK2(port_y);
-			if(x < w && y < uxn_screen.height)
-				layer[x + y * w] = color;
-			screen_change(x, y, x + 1, y + 1);
-			if(move & 0x1) POKE2(port_x, x + 1);
-			if(move & 0x2) POKE2(port_y, y + 1);
+			if(rX < w && rY < uxn_screen.height)
+				layer[rX + rY * w] = color;
+			screen_change(rX, rY, rX + 1, rY + 1);
+			if(move & 0x1) rX++;
+			if(move & 0x2) rY++;
 		}
 		break;
 	}
@@ -260,35 +271,27 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		Uint8 twobpp = !!(ctrl & 0x80);
 		Uint8 color = ctrl & 0xf;
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
+		Uint16 addr = rA;
 		int fx = ctrl & 0x10 ? -1 : 1;
 		int fy = ctrl & 0x20 ? -1 : 1;
-		port_x = d + 0x8;
-		port_y = d + 0xa;
-		port_addr = d + 0xc;
-		x = PEEK2(port_x), dx = (move & 0x1) << 3, dxy = dx * fy;
-		y = PEEK2(port_y), dy = (move & 0x2) << 2, dyx = dy * fx;
-		addr = PEEK2(port_addr), addr_incr = (move & 0x4) << (1 + twobpp);
+		dx = (move & 0x1) << 3, dxy = dx * fy;
+		dy = (move & 0x2) << 2, dyx = dy * fx;
+		addr_incr = (move & 0x4) << (1 + twobpp);
 		if(twobpp) {
 			for(i = 0; i <= length; i++) {
-				screen_2bpp(layer, &ram[addr], x + dyx * i, y + dxy * i, color, fx, fy);
+				screen_2bpp(layer, &ram[addr], rX + dyx * i, rY + dxy * i, color, fx, fy);
 				addr += addr_incr;
 			}
 		} else {
 			for(i = 0; i <= length; i++) {
-				screen_1bpp(layer, &ram[addr], x + dyx * i, y + dxy * i, color, fx, fy);
+				screen_1bpp(layer, &ram[addr], rX + dyx * i, rY + dxy * i, color, fx, fy);
 				addr += addr_incr;
 			}
 		}
-		screen_change(x, y, x + dyx * length + 8, y + dxy * length + 8);
-		if(move & 0x1) {
-			x += dx * fx;
-			POKE2(port_x, x);
-		}
-		if(move & 0x2) {
-			y += dy * fy;
-			POKE2(port_y, y);
-		}
-		if(move & 0x4) POKE2(port_addr, addr); /* auto addr+length */
+		screen_change(rX, rY, rX + dyx * length + 8, rY + dxy * length + 8);
+		if(move & 0x1) rX += dx * fx;
+		if(move & 0x2) rY += dy * fy;
+		if(move & 0x4) rA = addr; /* auto addr+length */
 		break;
 	}
 	}
