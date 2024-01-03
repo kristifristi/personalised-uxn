@@ -15,10 +15,9 @@ WITH REGARD TO THIS SOFTWARE.
 
 extern char *boot_rom;
 
+int system_error(char *msg, const char *err);
 void system_reboot(Uxn *u, char *rom, int soft);
 void system_inspect(Uxn *u);
-int system_version(char *emulator, char *date);
-int system_error(char *msg, const char *err);
 int system_init(Uxn *u, Uint8 *ram, char *rom);
 
 Uint8 system_dei(Uxn *u, Uint8 addr);

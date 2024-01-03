@@ -18,8 +18,6 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
 
-Uxn u;
-
 Uint8
 emu_dei(Uxn *u, Uint8 addr)
 {
@@ -47,12 +45,13 @@ int
 main(int argc, char **argv)
 {
 	int i = 1;
+	Uxn u = {0};
 	Uint8 dev[0x100] = {0};
 	u.dev = (Uint8 *)&dev;
 	if(i == argc)
 		return system_error("usage", "uxncli [-v] file.rom [args..]");
 	if(argv[i][0] == '-' && argv[i][1] == 'v')
-		return system_version("Uxncli - Console Varvara Emulator", "2 Jan 2024");
+		return system_error("Uxncli - Varvara Emulator(CLI)", "2 Jan 2024.");
 	if(!system_init(&u, (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++]))
 		return system_error("Init", "Failed to initialize uxn.");
 	/* eval */

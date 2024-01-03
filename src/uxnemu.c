@@ -46,8 +46,6 @@ WITH REGARD TO THIS SOFTWARE.
 #define HEIGHT 40 * 8
 #define TIMEOUT_MS 334
 
-Uxn u;
-
 static SDL_Window *emu_window;
 static SDL_Texture *emu_texture;
 static SDL_Renderer *emu_renderer;
@@ -490,34 +488,34 @@ main(int argc, char **argv)
 {
 	Uint8 *ram;
 	char *rom;
+	Uxn u = {0};
 	Uint8 dev[0x100] = {0};
 	Uxn u_audio = {0};
 	u.dev = (Uint8 *)&dev;
 	u_audio.dev = (Uint8 *)&dev;
 	int i = 1;
-	if(i == argc)
-		return system_error("usage", "uxnemu [-v] | uxnemu [-f | -2x | -3x | --] file.rom [args...]");
-	/* Read flag. Right now, there can be only one. */
-	if(argv[i][0] == '-') {
-		if(argv[i][1] == 'v')
-			return system_version("Uxnemu - Graphical Varvara Emulator", "2 Jan 2024");
-		if(argv[i][1] == '-')
-			i++;
-		if(strcmp(argv[i], "-2x") == 0 || strcmp(argv[i], "-3x") == 0)
-			set_zoom(argv[i++][1] - '0', 0);
-		if(strcmp(argv[i], "-f") == 0) {
-			i++;
+	/* flags */
+	if(argc > 1 && argv[i][0] == '-') {
+		if(!strcmp(argv[i], "-v"))
+			return system_error("Uxnemu - Varvara Emulator(GUI)", "2 Jan 2024.");
+		else if(!strcmp(argv[i], "-2x"))
+			set_zoom(2, 0);
+		else if(!strcmp(argv[i], "-3x"))
+			set_zoom(3, 0);
+		else if(strcmp(argv[i], "-f") == 0)
 			set_fullscreen(1, 0);
-		}
+		i++;
 	}
-	/* Start system. */
+	if(i == argc)
+		return system_error("usage", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
+	/* start */
 	ram = (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8));
 	rom = argv[i++];
 	if(!system_init(&u, ram, rom) || !system_init(&u_audio, ram, rom))
 		return system_error("Init", "Failed to initialize uxn.");
 	if(!emu_init(&u_audio))
 		return system_error("Init", "Failed to initialize varvara.");
-	/* Game Loop */
+	/* loop */
 	u.dev[0x17] = argc - i;
 	if(uxn_eval(&u, PAGE_PROGRAM)) {
 		console_listen(&u, i, argc, argv);

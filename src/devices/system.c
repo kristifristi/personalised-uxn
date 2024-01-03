@@ -49,6 +49,17 @@ system_print(Stack *s, char *name)
 	fprintf(stderr, "\n");
 }
 
+static void
+system_zero(Uxn *u, int soft)
+{
+	int i;
+	for(i = PAGE_PROGRAM * soft; i < 0x10000; i++)
+		u->ram[i] = 0;
+	for(i = 0x0; i < 0x100; i++)
+		u->dev[i] = 0;
+	u->wst.ptr = u->rst.ptr = 0;
+}
+
 void
 system_inspect(Uxn *u)
 {
@@ -62,24 +73,6 @@ system_error(char *msg, const char *err)
 	fprintf(stderr, "%s: %s\n", msg, err);
 	fflush(stderr);
 	return 0;
-}
-
-int
-system_version(char *name, char *date)
-{
-	printf("%s, %s.\n", name, date);
-	return 0;
-}
-
-void
-system_zero(Uxn *u, int soft)
-{
-	int i;
-	for(i = PAGE_PROGRAM * soft; i < 0x10000; i++)
-		u->ram[i] = 0;
-	for(i = 0x0; i < 0x100; i++)
-		u->dev[i] = 0;
-	u->wst.ptr = u->rst.ptr = 0;
 }
 
 void
