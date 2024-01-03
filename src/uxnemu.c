@@ -507,7 +507,7 @@ main(int argc, char **argv)
 		i++;
 	}
 	if(i == argc)
-		return system_error("usage", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
+		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	/* start */
 	ram = (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8));
 	rom = argv[i++];

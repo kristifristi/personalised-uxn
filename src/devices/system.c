@@ -70,7 +70,7 @@ system_inspect(Uxn *u)
 int
 system_error(char *msg, const char *err)
 {
-	fprintf(stderr, "%s: %s\n", msg, err);
+	fprintf(stderr, "%s %s\n", msg, err);
 	fflush(stderr);
 	return 0;
 }

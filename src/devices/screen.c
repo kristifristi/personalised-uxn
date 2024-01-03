@@ -222,30 +222,33 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		Uint8 ctrl = d[0xe];
 		Uint8 color = ctrl & 0x3;
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
-		port_x = d + 0x8, port_y = d + 0xa;
-		Uint16 x = PEEK2(port_x), y = PEEK2(port_y);
+		port_x = d + 0x8;
+		port_y = d + 0xa;
 		/* fill mode */
 		if(ctrl & 0x80) {
 			Uint16 x2, y2;
 			if(ctrl & 0x10)
-				x2 = x, x = 0;
+				x = 0, x2 = PEEK2(port_x);
 			else
-				x2 = uxn_screen.width;
+				x = PEEK2(port_x), x2 = uxn_screen.width;
 			if(ctrl & 0x20)
-				y2 = y, y = 0;
+				y = 0, y2 = PEEK2(port_y);
 			else
-				y2 = uxn_screen.height;
+				y = PEEK2(port_y), y2 = uxn_screen.height;
 			screen_rect(layer, x, y, x2, y2, color);
 			screen_change(x, y, x2, y2);
 		}
 		/* pixel mode */
 		else {
+			Uint8 move = d[0x6];
 			Uint16 w = uxn_screen.width;
+			x = PEEK2(port_x);
+			y = PEEK2(port_y);
 			if(x < w && y < uxn_screen.height)
 				layer[x + y * w] = color;
 			screen_change(x, y, x + 1, y + 1);
-			if(d[0x6] & 0x1) POKE2(port_x, x + 1);
-			if(d[0x6] & 0x2) POKE2(port_y, y + 1);
+			if(move & 0x1) POKE2(port_x, x + 1);
+			if(move & 0x2) POKE2(port_y, y + 1);
 		}
 		break;
 	}
@@ -257,9 +260,10 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		Uint8 twobpp = !!(ctrl & 0x80);
 		Uint8 color = ctrl & 0xf;
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
-		int flipx = (ctrl & 0x10), fx = flipx ? -1 : 1;
-		int flipy = (ctrl & 0x20), fy = flipy ? -1 : 1;
-		port_x = d + 0x8, port_y = d + 0xa;
+		int fx = ctrl & 0x10 ? -1 : 1;
+		int fy = ctrl & 0x20 ? -1 : 1;
+		port_x = d + 0x8;
+		port_y = d + 0xa;
 		port_addr = d + 0xc;
 		x = PEEK2(port_x), dx = (move & 0x1) << 3, dxy = dx * fy;
 		y = PEEK2(port_y), dy = (move & 0x2) << 2, dyx = dy * fx;

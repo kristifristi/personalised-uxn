@@ -49,7 +49,7 @@ main(int argc, char **argv)
 	Uint8 dev[0x100] = {0};
 	u.dev = (Uint8 *)&dev;
 	if(i == argc)
-		return system_error("usage", "uxncli [-v] file.rom [args..]");
+		return system_error("usage:", "uxncli [-v] file.rom [args..]");
 	if(argv[i][0] == '-' && argv[i][1] == 'v')
 		return system_error("Uxncli - Varvara Emulator(CLI)", "2 Jan 2024.");
 	if(!system_init(&u, (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++]))
