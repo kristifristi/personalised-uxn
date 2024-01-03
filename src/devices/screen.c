@@ -271,7 +271,6 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		Uint8 twobpp = !!(ctrl & 0x80);
 		Uint8 color = ctrl & 0xf;
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
-		Uint16 addr = rA;
 		int fx = ctrl & 0x10 ? -1 : 1;
 		int fy = ctrl & 0x20 ? -1 : 1;
 		dx = (move & 0x1) << 3, dxy = dx * fy;
@@ -279,19 +278,18 @@ screen_deo(Uint8 *ram, Uint8 *d, Uint8 port)
 		addr_incr = (move & 0x4) << (1 + twobpp);
 		if(twobpp) {
 			for(i = 0; i <= length; i++) {
-				screen_2bpp(layer, &ram[addr], rX + dyx * i, rY + dxy * i, color, fx, fy);
-				addr += addr_incr;
+				screen_2bpp(layer, &ram[rA], rX + dyx * i, rY + dxy * i, color, fx, fy);
+				rA += addr_incr;
 			}
 		} else {
 			for(i = 0; i <= length; i++) {
-				screen_1bpp(layer, &ram[addr], rX + dyx * i, rY + dxy * i, color, fx, fy);
-				addr += addr_incr;
+				screen_1bpp(layer, &ram[rA], rX + dyx * i, rY + dxy * i, color, fx, fy);
+				rA += addr_incr;
 			}
 		}
 		screen_change(rX, rY, rX + dyx * length + 8, rY + dxy * length + 8);
 		if(move & 0x1) rX += dx * fx;
 		if(move & 0x2) rY += dy * fy;
-		if(move & 0x4) rA = addr; /* auto addr+length */
 		break;
 	}
 	}
