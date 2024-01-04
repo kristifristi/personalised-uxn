@@ -242,46 +242,48 @@ file_delete(UxnFile *c)
 	return c->outside_sandbox ? 0 : unlink(c->current_filename);
 }
 
+/* file registers */
+
+static Uint16 rL;
+
 /* IO */
 
 void
 file_deo(Uint8 id, Uint8 *ram, Uint8 *d, Uint8 port)
 {
 	UxnFile *c = &uxn_file[id];
-	Uint16 addr, len, res;
+	Uint16 addr, res;
 	switch(port) {
 	case 0x5:
-		addr = PEEK2(d + 0x4);
-		len = PEEK2(d + 0xa);
-		if(len > 0x10000 - addr)
-			len = 0x10000 - addr;
-		res = file_stat(c, &ram[addr], len);
-		POKE2(d + 0x2, res);
-		break;
+		addr = (d[0x4] << 8) | d[0x5];
+		if(rL > 0x10000 - addr) rL = 0x10000 - addr;
+		res = file_stat(c, &ram[addr], rL);
+		d[0x2] = res >> 8, d[0x3] = res;
+		return;
 	case 0x6:
 		res = file_delete(c);
-		POKE2(d + 0x2, res);
-		break;
+		d[0x2] = res >> 8, d[0x3] = res;
+		return;
 	case 0x9:
-		addr = PEEK2(d + 0x8);
+		addr = (d[0x8] << 8) | d[0x9];
 		res = file_init(c, (char *)&ram[addr], 0x10000 - addr, 0);
-		POKE2(d + 0x2, res);
-		break;
+		d[0x2] = res >> 8, d[0x3] = res;
+		return;
+	case 0xa:
+	case 0xb:
+		rL = (d[0xa] << 8) | d[0xb];
+		return;
 	case 0xd:
-		addr = PEEK2(d + 0xc);
-		len = PEEK2(d + 0xa);
-		if(len > 0x10000 - addr)
-			len = 0x10000 - addr;
-		res = file_read(c, &ram[addr], len);
-		POKE2(d + 0x2, res);
-		break;
+		addr = (d[0xc] << 8) | d[0xd];
+		if(rL > 0x10000 - addr) rL = 0x10000 - addr;
+		res = file_read(c, &ram[addr], rL);
+		d[0x2] = res >> 8, d[0x3] = res;
+		return;
 	case 0xf:
-		addr = PEEK2(d + 0xe);
-		len = PEEK2(d + 0xa);
-		if(len > 0x10000 - addr)
-			len = 0x10000 - addr;
-		res = file_write(c, &ram[addr], len, d[0x7]);
-		POKE2(d + 0x2, res);
-		break;
+		addr = (d[0xe] << 8) | d[0xf];
+		if(rL > 0x10000 - addr) rL = 0x10000 - addr;
+		res = file_write(c, &ram[addr], rL, d[0x7]);
+		d[0x2] = res >> 8, d[0x3] = res;
+		return;
 	}
 }
