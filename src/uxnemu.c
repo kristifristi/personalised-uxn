@@ -486,6 +486,7 @@ emu_end(Uxn *u)
 int
 main(int argc, char **argv)
 {
+	int i = 1;
 	Uint8 *ram;
 	char *rom;
 	Uxn u = {0};
@@ -493,7 +494,6 @@ main(int argc, char **argv)
 	Uxn u_audio = {0};
 	u.dev = (Uint8 *)&dev;
 	u_audio.dev = (Uint8 *)&dev;
-	int i = 1;
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))

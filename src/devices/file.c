@@ -64,14 +64,10 @@ inthex(int n)
 static void
 reset(UxnFile *c)
 {
-	if(c->f != NULL) {
-		fclose(c->f);
-		c->f = NULL;
-	}
-	if(c->dir != NULL) {
-		closedir(c->dir);
-		c->dir = NULL;
-	}
+	if(c->f != NULL)
+		fclose(c->f), c->f = NULL;
+	if(c->dir != NULL)
+		closedir(c->dir), c->dir = NULL;
 	c->de = NULL;
 	c->state = IDLE;
 	c->outside_sandbox = 0;
@@ -100,19 +96,17 @@ put_info(char *p, Uint16 len, const char *pathname)
 }
 
 static Uint16
-put_line(char *p, Uint16 len, const char *pathname, const char *basename, int fail_nonzero)
+put_line(char *p, Uint16 len, const char *pathname, const char *basename)
 {
 	struct stat st;
 	if(len < strlen(basename) + 8)
 		return 0;
-	if(stat(pathname, &st))
-		return fail_nonzero ? snprintf(p, len, "!!!! %s\n", basename) : 0;
-	else if(S_ISDIR(st.st_mode))
-		return snprintf(p, len, "---- %s/\n", basename);
-	else if(st.st_size < 0x10000)
-		return snprintf(p, len, "%04x %s\n", (unsigned int)st.st_size, basename);
+	stat(pathname, &st);
+	put_info(p, len, pathname);
+	if(S_ISDIR(st.st_mode))
+		return snprintf(p + 4, len, " %s/\n", basename) + 4;
 	else
-		return snprintf(p, len, "???? %s\n", basename);
+		return snprintf(p + 4, len, " %s\n", basename) + 4;
 }
 
 static Uint16
@@ -143,7 +137,7 @@ file_read_dir(UxnFile *c, char *dest, Uint16 len)
 			snprintf(pathname, sizeof(pathname), "%s/%s", c->current_filename, c->de->d_name);
 		else
 			pathname[0] = '\0';
-		n = put_line(p, len, pathname, c->de->d_name, 1);
+		n = put_line(p, len, pathname, c->de->d_name);
 		if(!n) break;
 		p += n;
 		len -= n;
