@@ -54,6 +54,13 @@ typedef struct {
 
 static UxnFile uxn_file[POLYFILEY];
 
+static char
+inthex(int n)
+{
+	n &= 0xf;
+	return n < 10 ? '0' + n : 'a' + (n - 10);
+}
+
 static void
 reset(UxnFile *c)
 {
@@ -71,7 +78,29 @@ reset(UxnFile *c)
 }
 
 static Uint16
-get_entry(char *p, Uint16 len, const char *pathname, const char *basename, int fail_nonzero)
+put_info(char *p, Uint16 len, const char *pathname)
+{
+	struct stat st;
+	if(len < 4)
+		return 0;
+	if(stat(pathname, &st))
+		p[0] = p[1] = p[2] = p[3] = '!';
+	else if(S_ISDIR(st.st_mode))
+		p[0] = p[1] = p[2] = p[3] = '-';
+	else if(st.st_size >= 0x10000)
+		p[0] = p[1] = p[2] = p[3] = '?';
+	else {
+		unsigned int size = st.st_size;
+		p[0] = inthex(size >> 0xc);
+		p[1] = inthex(size >> 0x8);
+		p[2] = inthex(size >> 0x4);
+		p[3] = inthex(size);
+	}
+	return 4;
+}
+
+static Uint16
+put_line(char *p, Uint16 len, const char *pathname, const char *basename, int fail_nonzero)
 {
 	struct stat st;
 	if(len < strlen(basename) + 8)
@@ -114,7 +143,7 @@ file_read_dir(UxnFile *c, char *dest, Uint16 len)
 			snprintf(pathname, sizeof(pathname), "%s/%s", c->current_filename, c->de->d_name);
 		else
 			pathname[0] = '\0';
-		n = get_entry(p, len, pathname, c->de->d_name, 1);
+		n = put_line(p, len, pathname, c->de->d_name, 1);
 		if(!n) break;
 		p += n;
 		len -= n;
@@ -233,7 +262,7 @@ file_stat(UxnFile *c, void *dest, Uint16 len)
 		basename++;
 	else
 		basename = c->current_filename;
-	return get_entry(dest, len, c->current_filename, basename, 0);
+	return put_info(dest, len, c->current_filename);
 }
 
 static Uint16
