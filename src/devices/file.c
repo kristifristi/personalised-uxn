@@ -74,39 +74,19 @@ reset(UxnFile *c)
 }
 
 static Uint16
-put_info(char *p, Uint16 len, const char *pathname)
-{
-	struct stat st;
-	if(len < 4)
-		return 0;
-	if(stat(pathname, &st))
-		p[0] = p[1] = p[2] = p[3] = '!';
-	else if(S_ISDIR(st.st_mode))
-		p[0] = p[1] = p[2] = p[3] = '-';
-	else if(st.st_size >= 0x10000)
-		p[0] = p[1] = p[2] = p[3] = '?';
-	else {
-		unsigned int size = st.st_size;
-		p[0] = inthex(size >> 0xc);
-		p[1] = inthex(size >> 0x8);
-		p[2] = inthex(size >> 0x4);
-		p[3] = inthex(size);
-	}
-	return 4;
-}
-
-static Uint16
-put_line(char *p, Uint16 len, const char *pathname, const char *basename)
+put_line(char *p, Uint16 len, const char *pathname, const char *basename, int fail_nonzero)
 {
 	struct stat st;
 	if(len < strlen(basename) + 8)
 		return 0;
-	stat(pathname, &st);
-	put_info(p, len, pathname);
-	if(S_ISDIR(st.st_mode))
-		return snprintf(p + 4, len, " %s/\n", basename) + 4;
+	if(stat(pathname, &st))
+		return fail_nonzero ? snprintf(p, len, "!!!! %s\n", basename) : 0;
+	else if(S_ISDIR(st.st_mode))
+		return snprintf(p, len, "---- %s/\n", basename);
+	else if(st.st_size < 0x10000)
+		return snprintf(p, len, "%04x %s\n", (unsigned int)st.st_size, basename);
 	else
-		return snprintf(p + 4, len, " %s\n", basename) + 4;
+		return snprintf(p, len, "???? %s\n", basename);
 }
 
 static Uint16
@@ -137,7 +117,7 @@ file_read_dir(UxnFile *c, char *dest, Uint16 len)
 			snprintf(pathname, sizeof(pathname), "%s/%s", c->current_filename, c->de->d_name);
 		else
 			pathname[0] = '\0';
-		n = put_line(p, len, pathname, c->de->d_name);
+		n = put_line(p, len, pathname, c->de->d_name, 1);
 		if(!n) break;
 		p += n;
 		len -= n;
@@ -248,15 +228,24 @@ file_write(UxnFile *c, void *src, Uint16 len, Uint8 flags)
 }
 
 static Uint16
-file_stat(UxnFile *c, void *dest, Uint16 len)
+file_stat(UxnFile *c, char *p, Uint16 len)
 {
-	char *basename = strrchr(c->current_filename, DIR_SEP_CHAR);
-	if(c->outside_sandbox) return 0;
-	if(basename != NULL)
-		basename++;
-	else
-		basename = c->current_filename;
-	return put_info(dest, len, c->current_filename);
+	struct stat st;
+	if(c->outside_sandbox || len < 4) return 0;
+	if(stat(c->current_filename, &st))
+		p[0] = p[1] = p[2] = p[3] = '!';
+	else if(S_ISDIR(st.st_mode))
+		p[0] = p[1] = p[2] = p[3] = '-';
+	else if(st.st_size >= 0x10000)
+		p[0] = p[1] = p[2] = p[3] = '?';
+	else {
+		unsigned int size = st.st_size;
+		p[0] = inthex(size >> 0xc);
+		p[1] = inthex(size >> 0x8);
+		p[2] = inthex(size >> 0x4);
+		p[3] = inthex(size);
+	}
+	return 4;
 }
 
 static Uint16
@@ -280,7 +269,7 @@ file_deo(Uint8 id, Uint8 *ram, Uint8 *d, Uint8 port)
 	case 0x5:
 		addr = (d[0x4] << 8) | d[0x5];
 		if(rL > 0x10000 - addr) rL = 0x10000 - addr;
-		res = file_stat(c, &ram[addr], rL);
+		res = file_stat(c, (char *)&ram[addr], rL);
 		d[0x2] = res >> 8, d[0x3] = res;
 		return;
 	case 0x6:
