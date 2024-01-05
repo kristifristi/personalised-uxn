@@ -230,22 +230,23 @@ file_write(UxnFile *c, void *src, Uint16 len, Uint8 flags)
 static Uint16
 file_stat(UxnFile *c, char *p, Uint16 len)
 {
+	unsigned int i, size;
 	struct stat st;
-	if(c->outside_sandbox || len < 4) return 0;
+	if(c->outside_sandbox || !len)
+		return 0;
 	if(stat(c->current_filename, &st))
-		p[0] = p[1] = p[2] = p[3] = '!';
+		for(i = 0; i < len && i < 4; i++)
+			p[i] = '!';
 	else if(S_ISDIR(st.st_mode))
-		p[0] = p[1] = p[2] = p[3] = '-';
+		for(i = 0; i < len && i < 4; i++)
+			p[i] = '-';
 	else if(st.st_size >= 0x10000)
-		p[0] = p[1] = p[2] = p[3] = '?';
-	else {
-		unsigned int size = st.st_size;
-		p[0] = inthex(size >> 0xc);
-		p[1] = inthex(size >> 0x8);
-		p[2] = inthex(size >> 0x4);
-		p[3] = inthex(size);
-	}
-	return 4;
+		for(i = 0; i < len && i < 4; i++)
+			p[i] = '?';
+	else
+		for(i = 0, size = st.st_size; i < len && i < 4; i++, size <<= 4)
+			p[i] = inthex(size >> 0xc);
+	return len;
 }
 
 static Uint16
