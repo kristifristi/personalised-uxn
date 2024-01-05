@@ -235,17 +235,17 @@ file_stat(UxnFile *c, char *p, Uint16 len)
 	if(c->outside_sandbox || !len)
 		return 0;
 	if(stat(c->current_filename, &st))
-		for(i = 0; i < len && i < 4; i++)
+		for(i = 0; i < len; i++)
 			p[i] = '!';
 	else if(S_ISDIR(st.st_mode))
-		for(i = 0; i < len && i < 4; i++)
+		for(i = 0; i < len; i++)
 			p[i] = '-';
-	else if(st.st_size >= 0x10000)
-		for(i = 0; i < len && i < 4; i++)
+	else if(st.st_size >= 1 << (len << 2))
+		for(i = 0; i < len; i++)
 			p[i] = '?';
 	else
-		for(i = 0, size = st.st_size; i < len && i < 4; i++, size <<= 4)
-			p[i] = inthex(size >> 0xc);
+		for(i = 0, size = st.st_size; i < len; i++)
+			p[i] = inthex(size >> ((len - i - 1) << 2));
 	return len;
 }
 
