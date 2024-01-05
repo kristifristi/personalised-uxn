@@ -270,7 +270,7 @@ file_deo(Uint8 id, Uint8 *ram, Uint8 *d, Uint8 port)
 	case 0x5:
 		addr = (d[0x4] << 8) | d[0x5];
 		if(rL > 0x10000 - addr) rL = 0x10000 - addr;
-		res = file_stat(c, (char *)&ram[addr], rL);
+		res = file_stat(c, (char *)&ram[addr], rL > 0x10 ? 0x10 : rL);
 		d[0x2] = res >> 8, d[0x3] = res;
 		return;
 	case 0x6:
