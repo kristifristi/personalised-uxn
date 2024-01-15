@@ -45,22 +45,56 @@
 	.Mouse/state DEI
 	( ) DUP #01 NEQ ?{ add-bunny }
 	( ) #02 LTH ?{ remove-bunny }
+	( | clear )
+	#0000 DUP2 .Screen/x DEO2
+	.Screen/y DEO2
+	[ LIT2 80 -Screen/pixel ] DEO
 	;sprite/length LDA2 #0000
 	&loop ( -- )
 		EQU2k ?&bail
-		DUP2 draw-bunny INC2 !&loop
+		DUP2 <draw-bunny>
+		INC2 !&loop
 	&bail ( -- )
 		POP2 POP2 BRK
 
-@draw-bunny ( idx -- )
-	( compute the offset to the beginning of this bunny's data ) #30 SFT2 ;sprite/array ADD2
-	( clear the old sprite location )
-	( top ) LDA2k #05 SFT2 .Screen/x DEO2
-	INC2k INC2 LDA2 #05 SFT2 .Screen/y DEO2
-	<clear-sprite>
-	( move the sprite by its velocity ) LDA2k OVR2 #0004 ADD2 LDA2 ADD2 OVR2 STA2
+@add-bunny ( -- )
+	;sprite/length LDA2
+	( | cap bunny count at 65535 )
+	DUP2 #ffff EQU2 ?&bail
+	( | compute the offset to the beginning of this new bunny's data )
+	DUP2 #30 SFT2 ;sprite/array ADD2
+	( | populate the new bunny's x/y/xvel/yvel with random values )
+	#00 rand OVR2 STA2
+	rand #1f AND rand OVR2 INC2 INC2 STA2
+	#00 rand #7f AND OVR2 #0004 ADD2 STA2
+	#00 rand #7f AND OVR2 #0006 ADD2 STA2
+	( | pop ptr to bunny data )
+	POP2
+	( | write new increased array length )
+	INC2 DUP2 ;sprite/length STA2
+	( | update label )
+	STH2k #0028 #0008 STH2r <draw-dec>
+	&bail ( pop sprite/length )
+		POP2 JMP2r
+
+@remove-bunny ( -- )
+	;sprite/length LDA2
+	( don't let length go below 0 ) ORAk #00 EQU ?&bail
+	#0001 SUB2 DUP2 ;sprite/length STA2
+	( update label ) STH2k #0028 #0008 STH2r <draw-dec>
+	&bail POP2 JMP2r
+
+(
+@|drawing )
+
+@<draw-bunny> ( idx -- )
+	( | compute the offset to the beginning of this bunny's data )
+	#30 SFT2 ;sprite/array ADD2
+	( | move the sprite by its velocity )
+	LDA2k OVR2 #0004 ADD2 LDA2 ADD2 OVR2 STA2
 	INC2k INC2 LDA2 OVR2 #0006 ADD2 LDA2 ADD2 OVR2 INC2 INC2 STA2
-	( check for right wall collision + bounce x ) DUP2 #0004 ADD2 LDA2 #0f SFT2 #0001 EQU2 ?&skip-max-x
+	( | check for right wall collision + bounce x )
+	DUP2 #0004 ADD2 LDA2 #0f SFT2 #0001 EQU2 ?&skip-max-x
 	LDA2k #05 SFT2 #0008 ADD2 .Screen/width DEI2 LTH2 ?&skip-max-x
 	DUP2 #0004 ADD2 LDA2 #ffff MUL2 OVR2 #0004 ADD2 STA2
 	&skip-max-x ( check for left wall collision + bounce x )
@@ -68,7 +102,7 @@
 		DUP2 #0004 ADD2 LDA2 #ffff MUL2 OVR2 #0004 ADD2 STA2
 	&skip-min-x ( check for bottom wall collision + bounce y )
 		DUP2 #0006 ADD2 LDA2 #0f SFT2 #0001 EQU2 ?&skip-max-y
-		INC2k INC2 LDA2 #05 SFT2 #0008 ADD2 .Screen/height DEI2 LTH2 ?&skip-max-y
+		INC2k INC2 LDA2 #05 SFT2 #0010 ADD2 .Screen/height DEI2 LTH2 ?&skip-max-y
 		DUP2 #0006 ADD2 LDA2 #ffff MUL2 OVR2 #0006 ADD2 STA2
 		!&skip-gravity
 	&skip-max-y ( check for top wall collision + bounce x )
@@ -86,27 +120,6 @@
 		[ LIT2 00 -Screen/auto ] DEO
 		JMP2r
 
-@<clear-sprite> ( -- )
-	;fill-icn .Screen/addr DEO2
-	[ LIT2 11 -Screen/auto ] DEO
-	[ LIT2 00 -Screen/sprite ] DEO
-	[ LIT2 00 -Screen/auto ] DEO
-	JMP2r
-
-@add-bunny ( -- )
-	;sprite/length LDA2
-	( cap bunny count at 65535 ) DUP2 #ffff EQU2 ?&bail
-	( compute the offset to the beginning of this new bunny's data ) DUP2 #30 SFT2 ;sprite/array ADD2
-	( populate the new bunny's x/y/xvel/yvel with random values ) #00 [ rand ] OVR2 STA2
-	[ rand #1f AND ] [ rand ] OVR2 INC2 INC2 STA2
-	#00 [ rand #7f AND ] OVR2 #0004 ADD2 STA2
-	#00 [ rand #7f AND ] OVR2 #0006 ADD2 STA2
-	( pop ptr to bunny data ) POP2
-	( write new increased array length ) INC2 DUP2 ;sprite/length STA2
-	( update label ) STH2k #0028 #0008 STH2r <draw-dec>
-	&bail ( pop sprite/length )
-		POP2 JMP2r
-
 @<draw-str> ( x* y* text* color -- )
 	,&t STR
 	[ LIT2 01 -Screen/auto ] DEO
@@ -120,9 +133,9 @@
 	[ LIT2 01 -Screen/auto ] DEO
 	SWP2 .Screen/y DEO2
 	SWP2 .Screen/x DEO2
-	#2710 DIV2k DUP2 NIP <draw-digit>
-	MUL2 SUB2 #03e8 DIV2k DUP2 NIP <draw-digit>
-	MUL2 SUB2 #0064 DIV2k DUP2 NIP <draw-digit>
+	#2710 DIV2k DUP <draw-digit>
+	MUL2 SUB2 #03e8 DIV2k DUP <draw-digit>
+	MUL2 SUB2 #0064 DIV2k DUP <draw-digit>
 	MUL2 SUB2 NIP #0a DIVk DUP <draw-digit>
 	MUL SUB <draw-digit>
 	[ LIT2 00 -Screen/auto ] DEO
@@ -130,19 +143,8 @@
 
 @<draw-digit> ( num -- )
 	#30 SFT #00 SWP ;font/num ADD2 .Screen/addr DEO2
-	#41 .Screen/sprite DEO
+	[ LIT2 41 -Screen/sprite ] DEO
 	JMP2r
-
-@remove-bunny ( -- )
-	;sprite/length LDA2
-	( don't let length go below 0 ) ORAk #00 EQU ?&bail
-	( clear the old sprite location ) DUP2 #0001 SUB2 #30 SFT2 ;sprite/array ADD2
-	( top ) LDA2k #05 SFT2 .Screen/x DEO2
-	INC2k INC2 LDA2 #05 SFT2 .Screen/y DEO2
-	( clear ) <clear-sprite>
-	POP2 #0001 SUB2 DUP2 ;sprite/length STA2
-	( update label ) STH2k #0028 #0008 STH2r <draw-dec>
-	&bail POP2 JMP2r
 
 (
 @|random )
@@ -205,7 +207,9 @@
 @bunny-chr [
 	2466 6600 2424 003c 4200 007e 7e7e 7e7e
 	1818 3c3c 1800 0000 ff66 4242 667e 4242 ]
-	( beginning of sprite pixel data + array )
+
+(
+@|memory )
 
 @sprite &length $2
 	&array &x 0600 &y 0500 &xvel 0060 &yvel 0010
