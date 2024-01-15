@@ -1,6 +1,6 @@
 ( bunnymark.tal )
-		( November 2021, Kira Oakley )
-		( March 2022, Devine Lu Linvega )
+	( November 2021, Kira Oakley )
+	( March 2022, Devine Lu Linvega )
 
 |00 @System &vector $2 &pad $6 &r $2 &g $2 &b $2 &debug $1 &halt $1
 |20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
@@ -21,32 +21,36 @@
 	#2ce5 .System/b DEO2
 	( | interrupts )
 	;on-frame .Screen/vector DEO2
-	( | draw "FPS:" and "BUNNIES:" and instructions labels )
-	.Screen/width DEI2 #0046 SUB2 #0008 ;text/fps #42 <draw-str>
-	#0004 #0008 ;text/bunnies #42 <draw-str>
-	.Screen/width DEI2 #01 SFT2 #0050 SUB2 #0008 ;text/instructions #43 <draw-str>
+	( | fps label )
+	.Screen/width DEI2 #0046 SUB2 .Screen/x DEO2
+	#0008 .Screen/y DEO2
+	;text/fps #42 <draw-str>
+	( | bunnies label )
+	#0004 .Screen/x DEO2
+	;text/bunnies #42 <draw-str>
+	( | instructions label )
+	.Screen/width DEI2 #01 SFT2 #0050 SUB2 .Screen/x DEO2
+	;text/instructions #43 <draw-str>
 	#0028 #0008 #0000 <draw-dec>
-	( seed prng ) prng-init BRK
+	( | seed prng )
+	prng-init BRK
 
 @on-frame ( -> )
-	( frames++ ) .frames LDZ2k INC2 ROT STZ2
-	.DateTime/second DEI .last LDZ EQU ?&post-fps-update
-	( fps update )
-	( update last-secs ) .DateTime/second DEI .last STZ
-	( update fps label ) .Screen/width DEI2 #002b SUB2 #0008 .frames LDZ2 <draw-dec>
-	( reset frames counter ) #0000 .frames STZ2
-	&post-fps-update ( mouse input to add/remove bunnies )
-		.Mouse/state DEI #01 EQU ?&add
-		.Mouse/state DEI #01 GTH ?&remove
-		!&done
-		&add add-bunny !&done
-		&remove remove-bunny !&done
-	&done ( loop from 0 to ;sprite/length to make all ;draw-bunny calls )
-		;sprite/length LDA2 #0000
+	.frames LDZ2k INC2 ROT STZ2
+	.DateTime/second DEI .last LDZ EQU ?{
+		.DateTime/second DEI .last STZ
+		.Screen/width DEI2 #002b SUB2 #0008 .frames LDZ2 <draw-dec>
+		#0000 .frames STZ2 }
+	( | mouse handling )
+	.Mouse/state DEI
+	( ) DUP #01 NEQ ?{ add-bunny }
+	( ) #02 LTH ?{ remove-bunny }
+	;sprite/length LDA2 #0000
 	&loop ( -- )
 		EQU2k ?&bail
 		DUP2 draw-bunny INC2 !&loop
-	&bail POP2 POP2 BRK
+	&bail ( -- )
+		POP2 POP2 BRK
 
 @draw-bunny ( idx -- )
 	( compute the offset to the beginning of this bunny's data ) #30 SFT2 ;sprite/array ADD2
@@ -104,16 +108,13 @@
 		POP2 JMP2r
 
 @<draw-str> ( x* y* text* color -- )
+	,&t STR
 	[ LIT2 01 -Screen/auto ] DEO
-	STH
-	SWP2 .Screen/y DEO2
-	SWP2 .Screen/x DEO2
 	&loop ( -- )
 		LDAk #20 SUB #00 SWP #30 SFT2 ;font ADD2 .Screen/addr DEO2
-		STHkr .Screen/sprite DEO
+		[ LIT2 &t $1 -Screen/sprite ] DEO
 		INC2 LDAk ?&loop
-	POP2 STHr POP [ LIT2 00 -Screen/auto ] DEO
-	JMP2r
+	POP2 JMP2r
 
 @<draw-dec> ( x* y* num* -- )
 	[ LIT2 01 -Screen/auto ] DEO
