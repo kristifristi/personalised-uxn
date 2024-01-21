@@ -5,9 +5,9 @@
 
 @on-reset ( -> )
 	( | theme )
-	#6fff .System/r DEO2
-	#7fff .System/g DEO2
-	#8fff .System/b DEO2
+	#6f04 .System/r DEO2
+	#7f00 .System/g DEO2
+	#8f00 .System/b DEO2
 	( | screen size )
 	#00c0
 	( ) DUP2 .Screen/width DEO2
@@ -22,6 +22,7 @@
 
 @on-frame ( -> )
 	[ LIT2 &f $2 ] INC2 DUP2 ,&f STR2
+	( | end )
 	DUP2 #0400 LTH2 ?{
 		POP2 #0000 .Screen/vector DEO2
 		BRK }
@@ -51,10 +52,9 @@
 	#2001
 	&l ( -- )
 		#00 OVR STH2
-		[ LIT2 &t $2 ]
-		( ) DUP2k #01 SFT2 #0001 AND2 DUP2 ,&rx STR2
+		[ LIT2 &t $2 ] DUP2 #02 SFT2 ,&t STR2
+		( ) DUP2 #01 SFT2 #0001 AND2 DUP2 ,&rx STR2
 		( ) EOR2 #0001 AND2 ,&ry STR2
-		( ) #02 SFT2 ,&t STR2
 		[ LIT2 &x $2 ] [ LIT2 &y $2 ] [ LIT2 &rx $2 ] [ LIT2 &ry $2 ]
 		( ) STH2kr rot
 		( ) STH2kr ,&ry LDR2 MUL2 ADD2 ,&y STR2
