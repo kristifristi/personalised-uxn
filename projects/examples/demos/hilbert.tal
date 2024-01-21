@@ -15,20 +15,20 @@
 	( | pen )
 	#0020
 	( ) DUP2 .Screen/x DEO2
-	.Screen/y DEO2
+	( ) .Screen/y DEO2
 	( | vector )
 	;on-frame .Screen/vector DEO2
 	BRK
 
 @on-frame ( -> )
-	[ LIT2 &x1 0020 ] [ LIT2 &y1 0020 ]
-	( ) [ LIT2 &f $2 ] INC2 DUP2 ,&f STR2
+	[ LIT2 &f $2 ] INC2 DUP2 ,&f STR2
+	DUP2 #0400 LTH2 ?{
+		POP2 #0000 .Screen/vector DEO2
+		BRK }
 	d2xy
-	( cache y ) DUP2 ,&y1 STR2
-	( cache x ) OVR2 ,&x1 STR2
 	( | draw line )
-	ROT2 SWP2 diff ,&y STR2
-	diff ,&x STR2
+	.Screen/y DEI2 diff ,&y STR2
+	.Screen/x DEI2 diff ,&x STR2
 	#0400
 	&l ( -- )
 		.Screen/x DEI2k [ LIT2 &x $2 ] ADD2 ROT DEO2
@@ -39,7 +39,7 @@
 
 @diff ( a* b* -- dir* )
 	EQU2k ?{
-		GTH2 ?{ #0001 JMP2r }
+		LTH2 ?{ #0001 JMP2r }
 		#ffff JMP2r }
 	POP2 POP2 #0000 JMP2r
 
@@ -52,7 +52,7 @@
 	&l ( -- )
 		#00 OVR STH2
 		[ LIT2 &t $2 ]
-		( ) DUP2 DUP2 #01 SFT2 #0001 AND2 DUP2 ,&rx STR2
+		( ) DUP2k #01 SFT2 #0001 AND2 DUP2 ,&rx STR2
 		( ) EOR2 #0001 AND2 ,&ry STR2
 		( ) #02 SFT2 ,&t STR2
 		[ LIT2 &x $2 ] [ LIT2 &y $2 ] [ LIT2 &rx $2 ] [ LIT2 &ry $2 ]
