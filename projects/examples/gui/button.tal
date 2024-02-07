@@ -16,7 +16,7 @@
 	BRK
 
 @on-frame ( -> )
-	[ LIT2 20 &time 00 ] INCk ,&time STR
+	[ LIT2 18 &time 00 ] INCk ,&time STR
 	EQU ?{ BRK }
 	#0000 .Screen/vector DEO2
 	;button-chr/up <draw-button>
@@ -27,15 +27,11 @@
 	[ LIT2 00 -Mouse/state ] DEI NEQ #42 ADD ;pointer-icn <update-pointer>
 	.Mouse/state DEI ?{ BRK }
 	.Mouse/x DEI2 .Mouse/y DEI2 within-button ?{ BRK }
-	<press-button>
-	( release mouse ) [ LIT2 00 -Mouse/state ] DEO
-	BRK
-
-@<press-button> ( -- )
 	;button-chr/down <draw-button>
 	;on-frame .Screen/vector DEO2
 	#10 ;on-frame/time STA
-	JMP2r
+	[ LIT2 00 -Mouse/state ] DEO
+	BRK
 
 @within-button ( x* y* -- f )
 	#0010 SUB2 #0018 LTH2 STH
@@ -73,7 +69,8 @@
 
 @pointer-icn [ 80c0 e0f0 f8e0 1000 ]
 
-@button-chr &up [
+@button-chr 
+&up [
 	0000 1f3f 3f3f 3f3f 001f 3f7f 7f7f 7f7f
 	0000 ffff ffff ffff 00ff ffff ffff ffff
 	0000 f8fc fcfc fcfc 00f8 fcfe fefe fefe
@@ -82,7 +79,8 @@
 	fcfc fcfc fcfc fcfc fefe fefe fefe fefe
 	3f3f 3f3f 3f1f 0000 7f7f 7f5f 4020 1f00
 	ffff ffff ffff 0000 ffff ffff 0000 ff00
-	fcfc fcfc fcf8 0000 fefe fefa 0204 f800 ] &down [
+	fcfc fcfc fcf8 0000 fefe fefa 0204 f800 ] 
+&down [
 	0000 001f 3f3f 3f3f 0000 1f3f 7f7f 7f7f
 	0000 00ff ffff ffff 0000 ffff ffff ffff
 	0000 00f8 fcfc fcfc 0000 f8fc fefe fefe
