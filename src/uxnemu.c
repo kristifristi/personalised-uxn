@@ -362,9 +362,11 @@ handle_events(Uxn *u)
 		else if(event.type == SDL_MOUSEWHEEL)
 			mouse_scroll(u, &u->dev[0x90], event.wheel.x, event.wheel.y);
 		/* Controller */
-		else if(event.type == SDL_TEXTINPUT)
-			controller_key(u, &u->dev[0x80], event.text.text[0]);
-		else if(event.type == SDL_KEYDOWN) {
+		else if(event.type == SDL_TEXTINPUT) {
+			char *c;
+			for(c = event.text.text; *c; c++)
+				controller_key(u, &u->dev[0x80], *c);
+		} else if(event.type == SDL_KEYDOWN) {
 			int ksym;
 			if(get_key(&event))
 				controller_key(u, &u->dev[0x80], get_key(&event));
