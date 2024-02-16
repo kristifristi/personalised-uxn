@@ -19,20 +19,20 @@
 	BRK
 
 @<eval> ( -- )
-	;on-console/ptr LDA2 ;program
+	[ LIT2r =on-console/ptr ] LDA2r ;program
 	&while ( -- )
-		LDAk [ LIT "+ ] NEQ ?{ OVR2 STH2k LDA INC STH2r STA }
-		LDAk [ LIT "- ] NEQ ?{ OVR2 STH2k LDA #01 SUB STH2r STA }
-		LDAk [ LIT "> ] NEQ ?{ SWP2 INC2 SWP2 }
-		LDAk [ LIT "< ] NEQ ?{ SWP2 #0001 SUB2 SWP2 }
-		LDAk [ LIT ". ] NEQ ?{ OVR2 LDA #18 DEO }
+		LDAk [ LIT "+ ] NEQ ?{ LDAkr STHr INC STH2kr STA }
+		LDAk [ LIT "- ] NEQ ?{ LDAkr STHr #01 SUB STH2kr STA }
+		LDAk [ LIT "> ] NEQ ?{ INC2r }
+		LDAk [ LIT "< ] NEQ ?{ [ LIT2r 0001 ] SUB2r }
+		LDAk [ LIT ". ] NEQ ?{ LDAkr [ LITr 18 ] DEOr }
 		LDAk [ LIT "[ ] NEQ ?{ goto-next }
 		LDAk [ LIT "] ] NEQ ?{ goto-back }
 		INC2 LDAk ?&while
-	POP2 JMP2r
+	POP2 POP2r JMP2r
 
-@goto-next ( mem* prg* -- )
-	OVR2 LDA ?{ JMP2r }
+@goto-next ( `mem* prg* -- )
+	OVR2r LDAr STHr ?{ JMP2r }
 	[ LITr 00 ] INC2
 	&loop ( -- )
 		LDAk [ LIT "[ ] NEQ ?{ INCr }
@@ -41,8 +41,8 @@
 			[ LITr 01 ] SUBr }
 		INC2 !&loop
 
-@goto-back ( mem* prg* -- )
-	OVR2 LDA ?{ JMP2r }
+@goto-back ( `mem* prg* -- )
+	OVR2r LDAr STHr ?{ JMP2r }
 	[ LITr 00 ] #0001 SUB2
 	&loop ( -- )
 		LDAk [ LIT "] ] NEQ ?{ INCr }
