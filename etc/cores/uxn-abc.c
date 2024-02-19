@@ -36,7 +36,7 @@ uxn_eval(Uxn *u, Uint16 pc)
 		/* r */ Stack *s = ins & 0x40 ? &u->rst : &u->wst;
 		/* k */ if(ins & 0x80) kp = s->ptr, sp = &kp; else sp = &s->ptr;
 		switch(ins & 0x1f) {
-		case 0x00: case 0x20:
+		case 0x00:
 		switch(ins) {
 			case 0x00: /* BRK */ return 1;
 			case 0x20: /* JCI */ POP1(b) if(!b) { pc += 2; break; }
