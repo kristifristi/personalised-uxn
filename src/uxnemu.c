@@ -496,12 +496,12 @@ main(int argc, char **argv)
 	Uxn u = {0};
 	Uint8 dev[0x100] = {0};
 	Uxn u_audio = {0};
-	u.dev = (Uint8 *)&dev;
-	u_audio.dev = (Uint8 *)&dev;
+	u.dev = dev;
+	u_audio.dev = dev;
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxnemu - Varvara Emulator(GUI)", "18 Feb 2024.");
+			return system_error("Uxnemu - Varvara Emulator(GUI)", "19 Feb 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
