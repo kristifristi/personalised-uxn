@@ -499,7 +499,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxnemu - Varvara Emulator(GUI)", "14 Feb 2024.");
+			return system_error("Uxnemu - Varvara Emulator(GUI)", "18 Feb 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
