@@ -499,7 +499,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxnemu - Varvara Emulator(GUI)", "18 Feb 2024.");
+			return system_error("Uxnemu - Varvara Emulator(GUI)", "22 Feb 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
@@ -508,13 +508,11 @@ main(int argc, char **argv)
 			set_fullscreen(1, 0);
 		i++;
 	}
-	if(i == argc)
-		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	/* start */
+	rom = i == argc ? "boot.rom" : argv[i++];
 	ram = (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8));
-	rom = argv[i++];
 	if(!system_init(&u, ram, rom) || !system_init(&u_audio, ram, rom))
-		return system_error("Init", "Failed to initialize uxn.");
+		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	if(!emu_init(&u_audio))
 		return system_error("Init", "Failed to initialize varvara.");
 	/* loop */

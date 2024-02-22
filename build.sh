@@ -89,16 +89,7 @@ then
 	cp bin/uxnemu bin/uxnasm bin/uxncli $HOME/bin/
 fi
 
-bin/uxnasm projects/software/launcher.tal bin/launcher.rom
-bin/uxnasm projects/software/asma.tal bin/asma.rom
-
 if [ $norun = 1 ]; then exit; fi
-
-# Test usage
-
-bin/uxnasm
-bin/uxncli
-bin/uxnemu
 
 # Test version
 
@@ -106,8 +97,7 @@ bin/uxnasm -v
 bin/uxncli -v
 bin/uxnemu -v
 
-bin/uxnasm projects/examples/devices/mouse.tal bin/mouse.rom
-bin/uxnemu -2x bin/mouse.rom
+bin/uxnemu -2x
 
 # bin/uxnasm test.tal bin/test.rom
 # bin/uxncli bin/test.rom
