@@ -12,7 +12,6 @@
 *snarf
 *theme
 
-*.rom
-*.sym
+*.rom.sym
 
 *.[o0125678vqki]

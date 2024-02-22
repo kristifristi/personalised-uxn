@@ -131,8 +131,10 @@ stdin_handler(void *p)
 	SDL_Event event;
 	USED(p);
 	event.type = stdin_event;
-	while(read(0, &event.cbutton.button, 1) > 0 && SDL_PushEvent(&event) >= 0)
-		;
+	while(read(0, &event.cbutton.button, 1) > 0){
+		while(SDL_PushEvent(&event) < 0)
+			SDL_Delay(25); /* slow down - the queue is most likely full */
+	}
 	return 0;
 }
 
@@ -494,8 +496,8 @@ main(int argc, char **argv)
 	Uxn u = {0};
 	Uint8 dev[0x100] = {0};
 	Uxn u_audio = {0};
-	u.dev = (Uint8 *)&dev;
-	u_audio.dev = (Uint8 *)&dev;
+	u.dev = dev;
+	u_audio.dev = dev;
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
