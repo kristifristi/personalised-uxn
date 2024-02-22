@@ -97,8 +97,6 @@ bin/uxnasm -v
 bin/uxncli -v
 bin/uxnemu -v
 
+# Start potato
+
 bin/uxnemu -2x
-
-# bin/uxnasm test.tal bin/test.rom
-# bin/uxncli bin/test.rom
-
