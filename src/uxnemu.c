@@ -131,7 +131,7 @@ stdin_handler(void *p)
 	SDL_Event event;
 	USED(p);
 	event.type = stdin_event;
-	while(read(0, &event.cbutton.button, 1) > 0){
+	while(read(0, &event.cbutton.button, 1) > 0) {
 		while(SDL_PushEvent(&event) < 0)
 			SDL_Delay(25); /* slow down - the queue is most likely full */
 	}
