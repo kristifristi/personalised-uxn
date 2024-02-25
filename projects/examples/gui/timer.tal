@@ -43,21 +43,31 @@
 		!&<draw>
 	&pause ( -- )
 		[ LIT2 00 _&paused ] LDR EQU
-		( ) DUP ,&paused STR
-		( ) INC ;<draw-num>/color STA
+		( ) INCk <set-dec-color>
+		,&paused STR
 		!&<draw>
 	&end ( -- )
 		#0000 .Screen/vector DEO2
-		#06 ;<draw-num>/color STA
+		#06 <set-dec-color>
 		!&<draw>
 	&<draw> ( -- )
-		#0010 DUP2 .Screen/x DEO2
-		.Screen/y DEO2
-		[ LIT2 01 -Screen/auto ] DEO
-		,&time LDR DUP
-		( x0 ) #0a DIV <draw-num>
-		( 0x ) #0a DIVk MUL SUB <draw-num>
-		JMP2r
+		,&time LDR !<draw-dec>
+
+(
+@|drawing )
+
+@<set-dec-color> ( color --  )
+	;<draw-num>/color STA
+	JMP2r
+
+@<draw-dec> ( dec -- )
+	#0010 DUP2 .Screen/x DEO2
+	.Screen/y DEO2
+	[ LIT2 01 -Screen/auto ] DEO
+	DUP
+	( x0 ) #0a DIV <draw-num>
+	( 0x ) #0a DIVk MUL SUB
+	( >> )
 
 @<draw-num> ( num -- )
 	#00 SWP #30 SFT2 ;numbers-icns ADD2 .Screen/addr DEO2
