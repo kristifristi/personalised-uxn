@@ -32,9 +32,9 @@
 		BRK
 	&on-second ( -> )
 		[ LIT2 00 _&frame ] STR
-		[ LIT2 ff &time $1 ] ADD DUP ?{ Timer/end }
+		[ LIT2 ff &time $1 ] ADD DUP ?{ /end }
 		,&time STR
-		Timer/<draw> BRK
+		/<draw> BRK
 	&start ( -- )
 		[ LIT2 0f _&time ] STR
 		[ LIT2 00 _&paused ] STR
