@@ -33,20 +33,12 @@ system_load(Uxn *u, char *filename)
 }
 
 static void
-system_print(Stack *s, char *name)
+system_print(Stack *s)
 {
 	Uint8 i;
-	fprintf(stderr, "%s ", name);
-	for(i = 0; i < 9; i++) {
-		Uint8 pos = s->ptr - 4 + i;
-		if(!pos)
-			fprintf(stderr, "[%02x]", s->dat[pos]);
-		else if(i == 4)
-			fprintf(stderr, "<%02x>", s->dat[pos]);
-		else
-			fprintf(stderr, " %02x ", s->dat[pos]);
-	}
-	fprintf(stderr, "\n");
+	for(i = s->ptr - 7; i != s->ptr + 1; i++)
+		fprintf(stderr, "%02x%c", s->dat[i], i == 0 ? '|' : ' ');
+	fprintf(stderr, "< \n");
 }
 
 static void
@@ -63,8 +55,8 @@ system_zero(Uxn *u, int soft)
 void
 system_inspect(Uxn *u)
 {
-	system_print(&u->wst, "wst");
-	system_print(&u->rst, "rst");
+	fprintf(stderr, "WST "), system_print(&u->wst);
+	fprintf(stderr, "RST "), system_print(&u->rst);
 }
 
 int
