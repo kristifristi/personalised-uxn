@@ -2,7 +2,7 @@
 
 |100 @on-reset ( -> )
 
-	#10 STHk #01 SUB
+	[ LIT &size 20 ] STHk #01 SUB
 	&ver ( -- )
 		DUP
 		#00 EQUk ?{
