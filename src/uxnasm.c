@@ -79,7 +79,7 @@ error_top(const char *name, const char *msg)
 static int
 error(const char *name, const char *msg)
 {
-	fprintf(stderr, "%s: %s in %s:\n", name, msg, p.location);
+	fprintf(stderr, "%s: %s in @%s, %s.\n", name, msg, p.scope, p.location);
 	return 0;
 }
 
