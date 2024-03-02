@@ -36,7 +36,7 @@ typedef struct {
 typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_count;
-	char scope[0x40], lambda[0x10];
+	char scope[0x40], lambda[0x10], *location;
 	unsigned int ptr, length;
 	Uint16 label_len, macro_len, refs_len;
 	Label labels[0x400];
@@ -72,8 +72,15 @@ static int parse(char *w, FILE *f);
 static int
 error(const char *name, const char *msg)
 {
-	fprintf(stderr, "%s: %s\n", name, msg);
+	fprintf(stderr, "%s: %s in %s:\n", name, msg, p.location);
 	return 0;
+}
+
+static char *
+setlocation(char *name)
+{
+	p.location = name;
+	return name;
 }
 
 static char *
@@ -261,11 +268,11 @@ writelitbyte(Uint8 b)
 }
 
 static int
-doinclude(const char *filename)
+doinclude(char *filename)
 {
 	FILE *f;
 	char w[0x40];
-	if(!(f = fopen(filename, "r")))
+	if(!(f = fopen(setlocation(filename), "r")))
 		return error("Include missing", filename);
 	while(fscanf(f, "%63s", w) == 1)
 		if(!parse(w, f))
@@ -515,8 +522,8 @@ main(int argc, char *argv[])
 	if(argc == 1)
 		return error("usage", "uxnasm [-v] input.tal output.rom");
 	if(argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 25 Feb 2024.\n");
-	if(!(src = fopen(argv[1], "r")))
+		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 1 Mar 2024.\n");
+	if(!(src = fopen(setlocation(argv[1]), "r")))
 		return !error("Invalid input", argv[1]);
 	if(!assemble(src))
 		return !error("Assembly", "Failed to assemble rom.");
