@@ -48,7 +48,7 @@
 	[ LIT &f $1 ] INCk ,&f STR
 	( ) #03 AND #00 EQU ?{ BRK }
 	<run>
-	&paused BRK
+	BRK
 
 @on-mouse ( -> )
 	[ LIT2 00 -Mouse/state ] DEI NEQ #42 ADD ;cursor-icn <update-cursor>
@@ -58,7 +58,7 @@
 	( | paint )
 	.Mouse/x DEI2 .anchor/x LDZ2 SUB2 #01 SFT NIP
 	( ) .Mouse/y DEI2 .anchor/y LDZ2 SUB2 #01 SFT NIP <set-cell>
-	<draw-grid>
+	<redraw>
 	BRK
 
 @on-control ( -> )
@@ -66,33 +66,29 @@
 	( ) DUP #20 NEQ ?{
 		#0000 ;on-frame .Screen/vector DEI2 ORA ?{ SWP2 }
 		POP2 .Screen/vector DEO2 }
-	( ) #1b NEQ ?{ ;mmu/clear1 .System/expansion DEO2 }
+	( ) #1b NEQ ?{ ;MMU/clear1 .System/expansion DEO2 }
 	BRK
 
 (
 @|core )
 
 @<run> ( -- )
-	( | clear buffer )
-	;mmu/clear2 .System/expansion DEO2
-	( | <run> grid )
+	;MMU/clear2 .System/expansion DEO2
 	#4000
 	&ver ( -- )
-		STHk #4000
+		DUP ,&y STR
+		#4000
 	&hor ( -- )
-		DUP STHkr <run-cell>
+		DUP [ LIT &y $1 ] <run-cell>
 		INC GTHk ?&hor
-	POP2 POPr INC GTHk ?&ver
-	POP2
-	( | move buffer )
-	;mmu/move21 .System/expansion DEO2
-	( | draw )
-	!<draw-grid>
+	POP2 INC GTHk ?&ver
+	POP2 ;MMU/move21 .System/expansion DEO2
+	!<redraw>
 
 @<run-cell> ( x y -- )
-	( x y ) DUP2k
+	( x y ) DUP2 STH2k
 	( neighbours ) get-neighbours
-	( state ) ROT ROT get-cell #00 EQU ?&dead
+	( state ) STH2r get-index LDA #00 EQU ?&dead
 	DUP #02 LTH ?&dies
 	DUP #03 GTH ?&dies
 	POP !&save
@@ -116,38 +112,50 @@
 	#01 STH2r get-index STA
 	JMP2r
 
-@get-cell ( x y -- cell )
-	get-index LDA JMP2r
-
 @get-neighbours ( x y -- neighbours )
-	,&origin STR2
-	LITr 00 #0800
-	&loop ( -- )
-		#00 OVRk ADD2 ;&mask ADD2 LDA2 [ LIT2 &origin $2 ] ROT ADD STH
-		ADD STHr get-cell STH
-		ADDr INC GTHk ?&loop
+	,&y STR
+	,&x STR
+	[ LITr 00 ] #0800
+	&l ( -- )
+		#00 OVRk ADD2 ;&mask ADD2 LDA2
+		( ) [ LIT &y $1 ] ADD SWP
+		( ) [ LIT &x $1 ] ADD SWP get-index LDA [ STH ADDr ]
+		( ) INC GTHk ?&l
 	POP2 STHr JMP2r
 	&mask [
 	ffff 00ff 01ff ff00 0100 ff01 0001 0101 ]
 
+@within-rect ( x* y* rect -- flag )
+	STH
+	( y < rect.y1 ) DUP2 STHkr INC INC LDZ2 LTH2 ?&skip
+	( y > rect.y2 ) DUP2 STHkr #06 ADD LDZ2 GTH2 ?&skip
+	SWP2
+	( x < rect.x1 ) DUP2 STHkr LDZ2 LTH2 ?&skip
+	( x > rect.x2 ) DUP2 STHkr #04 ADD LDZ2 GTH2 ?&skip
+	POP2 POP2 POPr #01 JMP2r
+	&skip POP2 POP2 POPr #00 JMP2r
+
 (
 @|drawing )
 
-@<draw-grid> ( -- )
-	( draw cell count ) .anchor/x LDZ2 .Screen/x DEO2
+@<redraw> ( -- )
+	.anchor/x LDZ2 .Screen/x DEO2
 	.anchor/y2 LDZ2 #0008 ADD2 .Screen/y DEO2
 	[ LIT2 01 -Screen/auto ] DEO
 	.world/count LDZ2 <draw-short>
-	[ LIT2 00 -Screen/auto ] DEO
+	( | draw grid )
+	[ LIT2 01 -Screen/auto ] DEO
 	#4000
 	&ver ( -- )
 		#00 OVRk ADD2 .anchor/y LDZ2 ADD2 .Screen/y DEO2
-		STHk #4000
+		.anchor/x LDZ2 .Screen/x DEO2
+		DUP ,&y STR
+		#4000
 	&hor ( -- )
-		#00 OVRk ADD2 .anchor/x LDZ2 ADD2 .Screen/x DEO2
-		DUP STHkr get-cell INC .Screen/pixel DEO
+		DUP [ LIT &y $1 ] get-index LDA INC .Screen/pixel DEO
+		[ LIT2 00 -Screen/pixel ] DEO
 		INC GTHk ?&hor
-	POP2 POPr INC GTHk ?&ver
+	POP2 INC GTHk ?&ver
 	POP2 JMP2r
 
 @<draw-short> ( short* -- )
@@ -179,20 +187,10 @@
 	.Screen/sprite DEO
 	JMP2r
 
-@within-rect ( x* y* rect -- flag )
-	STH
-	( y < rect.y1 ) DUP2 STHkr INC INC LDZ2 LTH2 ?&skip
-	( y > rect.y2 ) DUP2 STHkr #06 ADD LDZ2 GTH2 ?&skip
-	SWP2
-	( x < rect.x1 ) DUP2 STHkr LDZ2 LTH2 ?&skip
-	( x > rect.x2 ) DUP2 STHkr #04 ADD LDZ2 GTH2 ?&skip
-	POP2 POP2 POPr #01 JMP2r
-	&skip POP2 POP2 POPr #00 JMP2r
-
 (
 @|assets )
 
-@mmu ( programs )
+@MMU ( programs )
 	&clear1 [ 01 1000 0000 =bank3 0000 =bank1 ]
 	&clear2 [ 01 1000 0000 =bank3 0000 =bank2 ]
 	&move21 [ 01 1000 0000 =bank2 0000 =bank1 ]
