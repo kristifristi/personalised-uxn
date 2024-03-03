@@ -104,12 +104,12 @@
 		JMP2r
 
 @get-index ( x y -- index* )
-	( y ) #3f AND #00 SWP #60 SFT2
-	( x ) ROT #3f AND #00 SWP ADD2 ;bank1 ADD2 JMP2r
+	( y ) #3f AND #00 SWP #60 SFT2 ROT
+	( x ) #3f AND #00 SWP ADD2 ;bank1 ADD2 JMP2r
 
 @<set-cell> ( x y -- )
-	STH2
-	#01 STH2r get-index STA
+	get-index STH2
+	#01 STH2r STA
 	JMP2r
 
 @get-neighbours ( x y -- neighbours )
@@ -139,24 +139,23 @@
 @|drawing )
 
 @<redraw> ( -- )
+	( | draw count )
 	.anchor/x LDZ2 .Screen/x DEO2
 	.anchor/y2 LDZ2 #0008 ADD2 .Screen/y DEO2
 	[ LIT2 01 -Screen/auto ] DEO
 	.world/count LDZ2 <draw-short>
 	( | draw grid )
 	[ LIT2 01 -Screen/auto ] DEO
-	#4000
-	&ver ( -- )
-		#00 OVRk ADD2 .anchor/y LDZ2 ADD2 .Screen/y DEO2
-		.anchor/x LDZ2 .Screen/x DEO2
-		DUP ,&y STR
-		#4000
-	&hor ( -- )
-		DUP [ LIT &y $1 ] get-index LDA INC .Screen/pixel DEO
+	.anchor/y LDZ2 .Screen/y DEO2
+	;bank2 ;bank1
+	&l ( -- )
+		DUP #3f AND ?{
+			.Screen/y DEI2k INC2 INC2 ROT DEO2
+			.anchor/x LDZ2 .Screen/x DEO2 }
+		LDAk INC .Screen/pixel DEO
 		[ LIT2 00 -Screen/pixel ] DEO
-		INC GTHk ?&hor
-	POP2 INC GTHk ?&ver
-	POP2 JMP2r
+		INC2 GTH2k ?&l
+	POP2 POP2 JMP2r
 
 @<draw-short> ( short* -- )
 	SWP <draw-byte>
@@ -212,7 +211,7 @@
 (
 @|memory )
 
-@bank1 $1000
+|8000 @bank1 $1000
 
 @bank2 $1000
 
