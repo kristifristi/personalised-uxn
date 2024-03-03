@@ -82,7 +82,8 @@
 		DUP [ LIT &y $1 ] <run-cell>
 		INC GTHk ?&hor
 	POP2 INC GTHk ?&ver
-	POP2 ;MMU/move21 .System/expansion DEO2
+	POP2
+	( move ) ;MMU/move21 .System/expansion DEO2
 	!<redraw>
 
 @<run-cell> ( x y -- )
@@ -120,8 +121,9 @@
 		#00 OVRk ADD2 ;&mask ADD2 LDA2
 		( ) [ LIT &y $1 ] ADD SWP
 		( ) [ LIT &x $1 ] ADD SWP get-index LDA [ STH ADDr ]
+		( stop at 3 ) DUPr [ LITr 03 ] GTHr [ LITr _&end ] JCNr
 		( ) INC GTHk ?&l
-	POP2 STHr JMP2r
+	&end POP2 STHr JMP2r
 	&mask [
 	ffff 00ff 01ff ff00 0100 ff01 0001 0101 ]
 
