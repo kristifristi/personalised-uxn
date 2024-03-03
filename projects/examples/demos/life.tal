@@ -43,7 +43,7 @@
 	BRK
 
 @on-frame ( -> )
-	.Mouse/state DEI #00 EQU ?{ BRK }
+	[ LIT2 00 -Mouse/state ] DEI EQU ?{ BRK }
 	#0000 .world/count STZ2
 	[ LIT &f $1 ] INCk ,&f STR
 	( ) #03 AND #00 EQU ?{ BRK }
@@ -136,9 +136,9 @@
 @<draw-grid> ( -- )
 	( draw cell count ) .anchor/x LDZ2 .Screen/x DEO2
 	.anchor/y2 LDZ2 #0008 ADD2 .Screen/y DEO2
-	#01 .Screen/auto DEO
+	[ LIT2 01 -Screen/auto ] DEO
 	.world/count LDZ2 <draw-short>
-	#00 .Screen/auto DEO
+	[ LIT2 00 -Screen/auto ] DEO
 	#4000
 	&ver ( -- )
 		#00 OVRk ADD2 .anchor/y LDZ2 ADD2 .Screen/y DEO2
