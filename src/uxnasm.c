@@ -383,6 +383,7 @@ parse(char *w, FILE *f)
 	case '.': /* literal byte zero-page */
 		makereference(p.scope, w + 1, w[0], p.ptr + 1);
 		return writelitbyte(0xff);
+	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
 	case '=': /* raw short absolute */
 		makereference(p.scope, w + 1, w[0], p.ptr);
 		return writeshort(0xffff, 0);
@@ -456,6 +457,7 @@ resolve(void)
 			p.data[r->addr] = l->addr & 0xff;
 			l->refs++;
 			break;
+		case ':':
 		case '=':
 		case ';':
 			if(!(l = findlabel(r->name)))
@@ -536,7 +538,7 @@ main(int argc, char *argv[])
 	if(argc == 1)
 		return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 2 Mar 2024.\n");
+		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 3 Mar 2024.\n");
 	if(!(src = fopen(setlocation(argv[1]), "r")))
 		return !error_top("Invalid input", argv[1]);
 	p.entry = argv[1];
