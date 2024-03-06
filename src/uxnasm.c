@@ -41,7 +41,7 @@ typedef struct {
 	Uint16 label_len, macro_len, refs_len;
 	Label labels[0x400];
 	Macro macros[0x100];
-	Reference refs[0x800];
+	Reference refs[0x1000];
 } Program;
 
 Program p;
@@ -223,7 +223,7 @@ makereference(char *scope, char *label, char rune, Uint16 addr)
 {
 	char subw[0x40], parent[0x40];
 	Reference *r;
-	if(p.refs_len >= 0x800)
+	if(p.refs_len >= 0x1000)
 		return error_asm("References limit exceeded", label);
 	r = &p.refs[p.refs_len++];
 	if(label[0] == '{') {
@@ -372,30 +372,22 @@ parse(char *w, FILE *f)
 			return error_asm("Invalid hex literal", w);
 		break;
 	case '_': /* raw byte relative */
-		makereference(p.scope, w + 1, w[0], p.ptr);
-		return writebyte(0xff);
+		return writebyte(0xff) && makereference(p.scope, w + 1, w[0], p.ptr);
 	case ',': /* literal byte relative */
-		makereference(p.scope, w + 1, w[0], p.ptr + 1);
-		return writelitbyte(0xff);
+		return writelitbyte(0xff) && makereference(p.scope, w + 1, w[0], p.ptr + 1);
 	case '-': /* raw byte absolute */
-		makereference(p.scope, w + 1, w[0], p.ptr);
-		return writebyte(0xff);
+		return writebyte(0xff) && makereference(p.scope, w + 1, w[0], p.ptr);
 	case '.': /* literal byte zero-page */
-		makereference(p.scope, w + 1, w[0], p.ptr + 1);
-		return writelitbyte(0xff);
+		return writelitbyte(0xff) && makereference(p.scope, w + 1, w[0], p.ptr + 1);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
 	case '=': /* raw short absolute */
-		makereference(p.scope, w + 1, w[0], p.ptr);
-		return writeshort(0xffff, 0);
+		return writeshort(0xffff, 0) && makereference(p.scope, w + 1, w[0], p.ptr);
 	case ';': /* literal short absolute */
-		makereference(p.scope, w + 1, w[0], p.ptr + 1);
-		return writeshort(0xffff, 1);
+		return writeshort(0xffff, 1) && makereference(p.scope, w + 1, w[0], p.ptr + 1);
 	case '?': /* JCI */
-		makereference(p.scope, w + 1, w[0], p.ptr + 1);
-		return writebyte(0x20) && writeshort(0xffff, 0);
+		return writebyte(0x20) && writeshort(0xffff, 0) && makereference(p.scope, w + 1, w[0], p.ptr + 1);
 	case '!': /* JMI */
-		makereference(p.scope, w + 1, w[0], p.ptr + 1);
-		return writebyte(0x40) && writeshort(0xffff, 0);
+		return writebyte(0x40) && writeshort(0xffff, 0) && makereference(p.scope, w + 1, w[0], p.ptr + 1);
 	case '"': /* raw string */
 		i = 0;
 		while((c = w[++i]))
@@ -424,10 +416,8 @@ parse(char *w, FILE *f)
 				if(!parse(m->items[i], f))
 					return 0;
 			return 1;
-		} else {
-			makereference(p.scope, w, ' ', p.ptr + 1);
-			return writebyte(0x60) && writeshort(0xffff, 0);
-		}
+		} else
+			return writebyte(0x60) && writeshort(0xffff, 0) && makereference(p.scope, w, ' ', p.ptr + 1);
 	}
 	return 1;
 }
@@ -538,7 +528,7 @@ main(int argc, char *argv[])
 	if(argc == 1)
 		return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 3 Mar 2024.\n");
+		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 6 Mar 2024.\n");
 	if(!(src = fopen(setlocation(argv[1]), "r")))
 		return !error_top("Invalid input", argv[1]);
 	p.entry = argv[1];
