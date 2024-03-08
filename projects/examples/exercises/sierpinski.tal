@@ -1,7 +1,6 @@
-( uxncli sierpinski.rom )
+( uxncli sierpinski.rom ) 
 
-|100 @on-reset ( -> )
-
+@on-reset ( -> )
 	[ LIT &size 20 ] STHk #01 SUB
 	&ver ( -- )
 		DUP
@@ -17,8 +16,7 @@
 			INC ADDk STHkr LTH ?&fill
 		POP2
 		#0a18 DEO
-		#01 SUB DUP #ff NEQ ?&ver
+		#01 SUB INCk ?&ver
 	POP POPr
-
-BRK
+	BRK
 
