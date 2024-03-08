@@ -1,22 +1,18 @@
-( uxncli sierpinski.rom ) 
+( uxncli sierpinski.rom )
 
-@on-reset ( -> )
-	[ LIT &size 20 ] STHk #01 SUB
-	&ver ( -- )
-		DUP
-		#00 EQUk ?{
-			&pad ( -- )
-				#2018 DEO
-				INC GTHk ?&pad
-		} POP 
-		#00
-		&fill
-			ANDk #202a ROT ?{ SWP } POP #18 DEO
+@sierpinski ( -> )
+	[ LIT &size 10 ] STHk #01 SUB
+	&>ver ( -- )
+		DUP INCk
+		&>pad ( length -- )
 			#2018 DEO
-			INC ADDk STHkr LTH ?&fill
-		POP2
-		#0a18 DEO
-		#01 SUB INCk ?&ver
-	POP POPr
-	BRK
+			#01 SUB DUP ?&>pad
+		&>fill ( length i -- )
+			ANDk #202a ROT ?{ SWP }
+			POP #18 DEO
+			#2018 DEO
+			INC ADDk STHkr LTH ?&>fill
+		POP2 #0a18 DEO
+		#01 SUB INCk ?&>ver
+	POP POPr BRK
 
