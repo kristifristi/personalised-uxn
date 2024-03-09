@@ -1,17 +1,17 @@
 ( uxncli sierpinski.rom )
 
 @sierpinski ( -> )
-	[ LIT &size 10 ] STHk #01 SUB
+	( mask ) [ LIT2r 0a18 ] [ LIT2r 2018 ] 
+	( size ) [ LIT &size 10 ] #01 SUB
 	&>ver ( -- )
 		DUP INCk
 		&>pad ( length -- )
-			#2018 DEO
+			DEOkr
 			#01 SUB DUP ?&>pad
 		&>fill ( length i -- )
-			ANDk #2018 DEOk SWP ROT ?{ #0a ORA }
-			SWP DEO
-			INC ADDk STHkr LTH ?&>fill
-		POP2 #0a18 DEO
+			ANDk DUP2r ?{ POP2r ORA2kr } DEOr DEOkr
+			INC ADDk ,&size LDR LTH ?&>fill
+		POP2 OVR2r DEOr
 		#01 SUB INCk ?&>ver
-	POP POPr BRK
+	POP POP2r POP2r BRK
 
