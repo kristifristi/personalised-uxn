@@ -2,7 +2,7 @@
 
 @sierpinski ( -> )
 	( mask ) [ LIT2r 0a18 ] [ LIT2r 2018 ] 
-	( size ) [ LIT &size 10 ] #01 SUB
+	( size ) [ LIT2 &size 1001 ] SUB
 	&>ver ( -- )
 		DUP INCk
 		&>pad ( length -- )
