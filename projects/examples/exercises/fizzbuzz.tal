@@ -1,33 +1,20 @@
-( FizzBuzz: From 1 to 100, for multiples of 3 print "Fizz", of 5 "Buzz" and for both "FizzBuzz" )
+( Print the first 30 numbers using the following rules:
+	| If n is divisible by 3, print "fizz"
+	| If n is divisible by 5, print "buzz"
+	| If n is divisible by both, print "fizzbuzz"
+	| Else, print the number )
 
-@on-reset ( -> )
-	#6400
-	&loop ( -- )
-		DUP <print-dec>
-		#2018 DEO
-		DUP #03 DIVk MUL SUB ?{ ;dict/fizz <print-str>/ }
-		DUP #05 DIVk MUL SUB ?{ ;dict/buzz <print-str>/ }
+@fizzbuzz ( -> )
+	#1e00
+	&>loop ( length i -- )
+		DUP fizz OVR buzz ORA ?{ DUP <dec> }
 		#0a18 DEO
-		INC GTHk ?&loop
-	POP2
-	( exit ) #800f DEO
-	BRK
+		INC GTHk ?&>loop
+	POP2 BRK
 
-@<print-dec> ( num -- )
-	( x0 ) DUP #0a DIV <print-num>
-	( 0x ) #0a DIVk MUL SUB
-	( >> )
-
-@<print-num> ( num -- )
-	#30 ADD #18 DEO
-	JMP2r
-
-@<print-str> ( addr* -- )
-	LDAk #18 DEO
-	INC2 & LDAk ?<print-str>
-	POP2 JMP2r
-
-@dict ( strings )
-	&fizz "Fizz $1
-	&buzz "Buzz $1
+@fizz ( n -- ) #03 DIVk MUL SUB ?{ #01 ;Dict/fizz !<str> } #00 JMP2r
+@buzz ( n -- ) #05 DIVk MUL SUB ?{ #01 ;Dict/buzz !<str> } #00 JMP2r
+@<dec> ( n -- ) DUP #0a DIV /d #0a DIVk MUL SUB &d #30 ADD #18 DEO JMP2r
+@<str> ( s* -- ) LDAk #18 DEO INC2 LDAk ?<str> POP2 JMP2r
+@Dict &fizz "Fizz $1 &buzz "Buzz $1
 
