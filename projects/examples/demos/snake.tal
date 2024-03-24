@@ -110,12 +110,12 @@
 	STH
 	( | draw tail )
 	;snake-icns .Screen/addr DEO2
-	.snake/length LDZ #00
+	.snake/tail .snake/length LDZ DUP ADD OVR ADD SWP
 	&>loop ( -- )
-		DUPk ADD .snake/tail ADD LDZ #0005 SFT2 .Screen/x DEO2
-		DUPk ADD .snake/tail ADD INC LDZ #0005 SFT2 .Screen/y DEO2
+		LDZk #0005 SFT2 .Screen/x DEO2
+		INCk LDZ #0005 SFT2 .Screen/y DEO2
 		STHkr .Screen/sprite DEO
-		INC GTHk ?&>loop
+		INC INC GTHk ?&>loop
 	POP2
 	( | draw head )
 	.snake/x LDZ #0005 SFT2 .Screen/x DEO2
