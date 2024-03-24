@@ -14,7 +14,7 @@
 
 |0100
 	( variables )
-	#01 .direction STZ
+	[ LIT2 01 -direction ] STZ
 	( vectors )
 	;on-frame .Screen/vector DEO2
 	( theme )
@@ -89,7 +89,7 @@ JMP2r
 	.timer LDZk INC DUP ROT STZ #06 EQU ?&pull
 
 !&pass
-	&pull #00 .timer STZ .ball/vy LDZ2k INC2 STH2k ROT STZ2 !&end
+	&pull [ LIT2 00 -timer ] STZ .ball/vy LDZ2k INC2 STH2k ROT STZ2 !&end
 	&pass .ball/vy LDZ2k STH2k ROT STZ2 !&end
 	&end .ball/y LDZ2k STH2r ADD2 check-flip-vy ROT STZ2
 

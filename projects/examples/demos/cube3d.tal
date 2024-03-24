@@ -2,14 +2,13 @@
 
 |00 @System &vector $2 &wst $1 &rst $1 &eaddr $2 &ecode $1 &pad $1 &r $2 &g $2 &b $2 &debug $1 &halt $1
 |20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
+|000
 
-|0000
-
-	@timer $1
 	@cube &v0 $8 &v4 $8
 	@center &x $2 &y $2
+	@timer $1
 
-|0100
+|100
 
 @on-reset ( -> )
 	( | theme )
@@ -23,43 +22,45 @@
 	;on-frame .Screen/vector DEO2
 
 @on-frame ( -> )
+	[ LIT &f $1 ] INCk ,&f STR
+	DUP #01 AND ?{ POP BRK }
+	#01 SFT .timer STZ
 	( | clear )
 	#0000 DUP2 .Screen/x DEO2
 	.Screen/y DEO2
 	[ LIT2 80 -Screen/pixel ] DEO
 	( | draw )
-	.timer LDZk INC SWP STZ
 	<draw-cube>
 	BRK
 
 @<draw-cube> ( frame -- )
 	( | create box )
 	#0800
-	&loop ( -- )
+	&>loop ( -- )
 		STHk [ LIT2 00 -timer ] LDZ #00 STHkr INC #07 AND #60 SFT ADD2 #00ff AND2 ;table ADD2 LDA #01 SFT #00 .timer LDZ #00 STHkr #60 SFT ADD2 #00ff AND2 ;table ADD2 LDA #02 SFT #00 STHkr #62 SFT2 ADD2 .cube/v0 STHr DUP ADD ADD STZ2
-		INC GTHk ?&loop
+		INC GTHk ?&>loop
 	POP2
 	( | vertices )
 	#0800
-	&ver-loop ( -- )
-		DUP DUP ADD .cube ADD LDZ2 <draw-vertex>
-		INC GTHk ?&ver-loop
+	&>ver-loop ( -- )
+		DUP DUP ADD LDZ2 <draw-vertex>
+		INC GTHk ?&>ver-loop
 	POP2
 	( lines ) #0400
-	&line-loop ( -- )
+	&>line-loop ( -- )
 		STHk .cube/v0 STHkr DUP ADD ADD .cube/v0 STHkr INC #03 AND DUP ADD ADD <draw-edge>
 		.cube/v0 STHkr DUP ADD ADD .cube/v4 STHkr DUP ADD ADD <draw-edge>
 		.cube/v4 STHkr DUP ADD ADD .cube/v4 STHr INC #03 AND DUP ADD ADD <draw-edge>
-		INC GTHk ?&line-loop
+		INC GTHk ?&>line-loop
 	POP2 JMP2r
 
 @<draw-edge> ( a b -- )
-	STH STH
+	STH
+	STH
 	( ) #00 STHkr LDZ .center/x LDZ2 ADD2
 	( ) #00 STHr INC LDZ .center/y LDZ2 ADD2
 	( ) #00 STHkr LDZ .center/x LDZ2 ADD2
-	( ) #00 STHr INC LDZ .center/y LDZ2 ADD2 #05 <draw-line>
-	JMP2r
+	( ) #00 STHr INC LDZ .center/y LDZ2 ADD2 #05 !<draw-line>
 
 @<draw-vertex> ( x y -- )
 	#00 SWP #0004 SUB2 .center/y LDZ2 ADD2 .Screen/y DEO2
@@ -81,15 +82,17 @@
 	#ffff [ LIT2 00 _&y2 ] LDR2 ,&y LDR2 lts2 DUP2 ADD2 ADD2 ,&sy STR2
 	[ LIT2 &dx $2 ] [ LIT2 &dy $2 ] ADD2 STH2
 	&while ( -- )
-		[ LIT2 &x2 $2 ] DUP2 .Screen/x DEO2
-		[ LIT2 &x $2 ] EQU2 [ LIT2 &y2 $2 ] DUP2 .Screen/y DEO2
-		[ LIT2 &y $2 ] EQU2 [ LIT2 &color $1 -Screen/pixel ] DEO
-		AND ?&end
-		STH2kr DUP2 ADD2 DUP2 ,&dy LDR2 lts2 ?&skipy
-		STH2r ,&dy LDR2 ADD2 STH2 ,&x2 LDR2 [ LIT2 &sx $2 ] ADD2 ,&x2 STR2
+	[ LIT2 &x2 $2 ] DUP2 .Screen/x DEO2
+	[ LIT2 &x $2 ] EQU2 [ LIT2 &y2 $2 ] DUP2 .Screen/y DEO2
+	[ LIT2 &y $2 ] EQU2 [ LIT2 &color $1 -Screen/pixel ] DEO
+	AND ?&end
+	STH2kr DUP2 ADD2 DUP2 ,&dy LDR2 lts2 ?&skipy
+	STH2r ,&dy LDR2 ADD2 STH2
+	,&x2 LDR2 [ LIT2 &sx $2 ] ADD2 ,&x2 STR2
 	&skipy ( -- )
-		,&dx LDR2 gts2 ?&while
-	STH2r ,&dx LDR2 ADD2 STH2 ,&y2 LDR2 [ LIT2 &sy $2 ] ADD2 ,&y2 STR2
+	,&dx LDR2 gts2 ?&while
+	STH2r ,&dx LDR2 ADD2 STH2
+	,&y2 LDR2 [ LIT2 &sy $2 ] ADD2 ,&y2 STR2
 	!&while
 	&end POP2r JMP2r
 

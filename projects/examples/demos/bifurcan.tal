@@ -83,8 +83,8 @@
 
 @<cover-pattern> ( addr* -- )
 	.Screen/addr DEO2
-	.Screen/height DEI2 #03 SFT2 NIP ,&h STR
-	.Screen/width DEI2 #03 SFT2 NIP ,&w STR
+	.Screen/height DEI2 #03 SFT2 ,&h STR POP
+	.Screen/width DEI2 #03 SFT2 ,&w STR POP
 	[ LIT &h $1 ] #00
 	&ver ( -- )
 		#00 OVR #30 SFT2 .Screen/y DEO2
@@ -103,6 +103,7 @@
 	.Mouse/x DEI2 ,<draw-cursor>/x STR2
 	.Mouse/y DEI2 ,<draw-cursor>/y STR2
 	.Screen/addr DEO2
+	( >> )
 
 @<draw-cursor> ( color -- )
 	[ LIT2 &x $2 ] .Screen/x DEO2
