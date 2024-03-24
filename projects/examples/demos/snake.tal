@@ -64,8 +64,7 @@
 
 @<move> ( -- )
 	( | copy tail )
-	[ LITr -snake/pos ] LDZ2r
-	.snake/length LDZ #00
+	[ LITr -snake/pos ] LDZ2r .snake/length LDZ #00
 	&>loop ( -- )
 		DUPk ADD .snake/tail ADD LDZ2k STH2
 		SWP2r STH2r ROT STZ2
@@ -74,13 +73,13 @@
 	( ) .snake/dead LDZ ?&end
 	.snake/direction LDZ
 	( ) DUP #01 NEQ ?{
-		.snake/y LDZ #01 SUB .arena/h LDZ [ LTHk JMP SWP POP ] .snake/y STZ }
+		.snake/y LDZk #01 SUB .arena/h set-pos }
 	DUP #02 NEQ ?{
-		.snake/y LDZ INC .arena/h LDZ DIVk MUL SUB .snake/y STZ }
+		.snake/y LDZk INC .arena/h set-pos }
 	DUP #04 NEQ ?{
-		.snake/x LDZ #01 SUB .arena/w LDZ [ LTHk JMP SWP POP ] .snake/x STZ }
+		.snake/x LDZk #01 SUB .arena/w set-pos }
 	DUP #08 NEQ ?{
-		.snake/x LDZ INC .arena/w LDZ DIVk MUL SUB .snake/x STZ }
+		.snake/x LDZk INC .arena/w set-pos }
 	POP
 	( | detect collision with apple )
 	.snake/pos LDZ2 .apple/pos LDZ2 NEQ2 ?{
@@ -96,6 +95,12 @@
 			#03 <draw-snake> }
 		INC GTHk ?&>loop-body
 	POP2 &end JMP2r
+
+@set-pos ( z mod -- )
+	LDZ OVR INC ?{ ROT STZ
+		POP JMP2r }
+	DIVk MUL SUB SWP STZ
+	JMP2r
 
 @<add-apple> ( -- )
 	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2
