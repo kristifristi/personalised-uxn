@@ -96,7 +96,7 @@
 		INC GTHk ?&>loop-body
 	POP2 &end JMP2r
 
-@set-pos ( z mod -- )
+@set-pos ( z mod max -- )
 	LDZ OVR INC ?{ ROT STZ
 		POP JMP2r }
 	DIVk MUL SUB SWP STZ
