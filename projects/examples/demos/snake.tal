@@ -4,200 +4,154 @@
 |20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
 |80 @Controller &vector $2 &button $1 &key $1
 |c0 @DateTime &year $2 &month $1 &day $1 &hour $1 &minute $1 &second $1 &dotw $1 &doty $2 &isdst $1
-
 |000
 
-( program )
+	@arena &w $1 &h $1
+	@apple &x $1 &y $1
+	@snake &direction $1 &length $1 &dead $1 &x $1 &y $1 &tail $40
 
-@arena
-	&w $1 &h $1 &timer $1
-@apple
-	&x $1 &y $1
-@snake
-	&direction $1 &length $1 &dead $1
-	&x $1 &y $1
-	&tail
+|100
 
-|100 @on-reset ( -> )
-
+@on-reset ( -> )
 	( | theme )
 	#0f7e .System/r DEO2
 	#0fe6 .System/g DEO2
 	#0f62 .System/b DEO2
-
 	( | vectors )
 	;on-frame .Screen/vector DEO2
 	;on-button .Controller/vector DEO2
-
 	( | resize )
 	#00c8 .Screen/width DEO2
 	#0100 .Screen/height DEO2
-
 	( | set arena )
 	.Screen/width DEI2 #03 SFT2 NIP .arena/w STZ
 	.Screen/height DEI2 #03 SFT2 NIP .arena/h STZ
-
-	reset
-
-BRK
+	[ LIT2 01 -Screen/auto ] DEO
+	reset BRK
 
 @on-frame ( -> )
-
-	.arena/timer LDZ INC DUP .arena/timer STZ
-		#06 ( difficulty - lower value produces faster gameplay )
-		EQU JMP BRK
-
-	( clear ) #00 draw-snake
-	( update ) move
-	( draw ) #02 .snake/dead LDZ ADD draw-snake
-		#83 draw-apple
-	( score ) .snake/length LDZ #41 draw-score
-	( reset ) #00 .arena/timer STZ
-
-BRK
+	[ LIT &f $1 ] INCk ,&f STR
+	#04 GTH ?{ BRK }
+	[ LIT2 00 _&f ] STR
+	#00 <draw-snake>
+	<move>
+	#02 .snake/dead LDZ ADD <draw-snake>
+	#83 <draw-apple>
+	<draw-score>
+	BRK
 
 @on-button ( -> )
-
 	.Controller/button DEI
-	DUP #08 NEQ ?{
-		reset }
-	#04 SFT DUP #00 EQU ?{
-		DUP .snake/direction STZ
-		}
-	POP
-
-BRK
+	( ) DUP #f0 AND ?&arrow
+	( ) #0f AND ?&button
+	BRK
+	&arrow ( button -> )
+	#04 SFT .snake/direction STZ
+	BRK
+	&button ( -> )
+	reset BRK
 
 @reset ( -- )
-
-	#00 draw-snake
-	#00 draw-apple
+	#00 <draw-snake>
+	#00 <draw-apple>
+	[ LIT2 00 -snake/dead ] STZ
+	[ LIT2 00 -snake/length ] STZ
+	[ LIT2 00 -snake/direction ] STZ
 	.arena/w LDZ #01 SFT #01 SUB .snake/x STZ
 	.arena/h LDZ #01 SFT #01 SUB .snake/y STZ
-	#00 .snake/dead STZ
-	#00 .snake/length STZ
-	#00 .snake/direction STZ
-	#03 draw-snake
-	!add-apple
+	#03 <draw-snake>
+	!<add-apple>
 
-@move ( -- )
-
-	( tail )
+@<move> ( -- )
+	( | tail )
 	.snake/x LDZ2 STH2
 	.snake/length LDZ #00
 	&>loop ( -- )
-		( pop ) DUPk ADD .snake/tail ADD LDZ2 STH2 SWP2r
+		( pop ) DUPk ADD .snake/tail ADD LDZ2 STH2
+		SWP2r
 		( push ) DUPk ADD .snake/tail ADD STH2r ROT STZ2
-		INC GTHk ?&>loop 
-	POP2
-	POP2r
-
-	.snake/dead LDZ #00 EQU JMP JMP2r
-
-	.snake/direction LDZ
-	DUP #01 NEQ ?&no-up 
-		.snake/y LDZ #01 SUB
-			.arena/h LDZ LTHk JMP SWP POP
-			.snake/y STZ
-		&no-up
-	DUP #02 NEQ ?&no-down 
-		.snake/y LDZ INC
-			.arena/h LDZ DIVk MUL SUB
-			.snake/y STZ
-		&no-down
-	DUP #04 NEQ ?&no-left 
-		.snake/x LDZ #01 SUB
-			.arena/w LDZ LTHk JMP SWP POP
-			.snake/x STZ
-		&no-left
-	DUP #08 NEQ ?&no-right 
-		.snake/x LDZ INC
-			.arena/w LDZ DIVk MUL SUB
-			.snake/x STZ
-		&no-right
-	POP
-
-	( detect collision with apple )
-	.snake/x LDZ2 .apple/x LDZ2 NEQ2 ?{
-		#00 draw-apple
+		INC GTHk ?&>loop
+	POP2 POP2r .snake/dead LDZ #00 EQU JMP
+	JMP2r
+	.snake/direction LDZ DUP #01 NEQ ?&no-up
+	.snake/y LDZ #01 SUB .arena/h LDZ LTHk JMP
+	SWP POP .snake/y STZ
+	&no-up DUP #02 NEQ ?&no-down
+	.snake/y LDZ INC .arena/h LDZ DIVk MUL SUB .snake/y STZ
+	&no-down DUP #04 NEQ ?&no-left
+	.snake/x LDZ #01 SUB .arena/w LDZ LTHk JMP
+	SWP POP .snake/x STZ
+	&no-left DUP #08 NEQ ?&no-right
+	.snake/x LDZ INC .arena/w LDZ DIVk MUL SUB .snake/x STZ
+	&no-right POP
+	( detect collision with apple ) .snake/x LDZ2 .apple/x LDZ2 NEQ2 ?{
+		#00 <draw-apple>
 		.snake/length LDZ INC .snake/length STZ
-		add-apple
-		move
-		}
-
+		<add-apple>
+		<move> }
 	.snake/length LDZ #01
 	&loop-body ( -- )
-		( pop ) DUPk ADD .snake/tail ADD LDZ2
-		.snake/x LDZ2 NEQ2 ?{
-			#01 .snake/dead STZ
-			#03 draw-snake
-			}
-		INC GTHk ?&loop-body 
-	POP2
+	( pop ) DUPk ADD .snake/tail ADD LDZ2 .snake/x LDZ2 NEQ2 ?{
+		#01 .snake/dead STZ
+		#03 <draw-snake> }
+	INC GTHk ?&loop-body
+	POP2 JMP2r
 
-JMP2r
+@<add-apple> ( -- )
+	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2
+	( ) DUP2 #1234 MUL2 ADD .arena/w LDZ DIVk MUL SUB .apple/x STZ
+	( ) #abcd MUL2 ADD .arena/h LDZ DIVk MUL SUB .apple/y STZ
+	JMP2r
 
-@add-apple ( -- )
+(
+@|drawing )
 
-	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2 #1234 MUL2 ADD
-		.arena/w LDZ DIVk MUL SUB .apple/x STZ
-	.DateTime/hour DEI2 .DateTime/minute DEI2 MUL2 #abcd MUL2 ADD
-		.arena/h LDZ DIVk MUL SUB .apple/y STZ
-
-JMP2r
-
-@draw-snake ( color -- )
-
+@<draw-snake> ( color -- )
 	STH
-	( draw tail )
+	( | draw tail )
 	;snake-icns .Screen/addr DEO2
 	.snake/length LDZ #00
 	&>loop ( -- )
 		DUPk ADD .snake/tail ADD LDZ #0005 SFT2 .Screen/x DEO2
 		DUPk ADD .snake/tail ADD INC LDZ #0005 SFT2 .Screen/y DEO2
 		STHkr .Screen/sprite DEO
-		INC GTHk ?&>loop 
+		INC GTHk ?&>loop
 	POP2
-	( draw head )
+	( | draw head )
 	.snake/x LDZ #0005 SFT2 .Screen/x DEO2
 	.snake/y LDZ #0005 SFT2 .Screen/y DEO2
 	;snake-icns/face .Screen/addr DEO2
 	STHr .Screen/sprite DEO
+	JMP2r
 
-JMP2r
-
-@draw-apple ( color -- )
-
+@<draw-apple> ( color -- )
 	.apple/x LDZ #0005 SFT2 .Screen/x DEO2
 	.apple/y LDZ #0005 SFT2 .Screen/y DEO2
 	;apple-chr .Screen/addr DEO2
 	.Screen/sprite DEO
+	JMP2r
 
-JMP2r
+@<draw-score> ( -- )
+	#0010 DUP2 .Screen/x DEO2
+	.Screen/y DEO2
+	.snake/length LDZ
+	( x0 ) DUP #04 SFT <draw-num>
+	( 0x ) !<draw-num>
 
-@draw-score ( score color -- )
+@<draw-num> ( num -- )
+	#00 SWP #0f AND #30 SFT2 ;font-hex ADD2 .Screen/addr DEO2
+	[ LIT2 41 -Screen/sprite ] DEO
+	JMP2r
 
-	STH
-	#0010 .Screen/x DEO2
-	#0010 .Screen/y DEO2
-	DUP #04 SFT #0005 SFT2 ;font-hex ADD2 .Screen/addr DEO2
-	.Screen/x DEI2 #0008 ADD2 .Screen/x DEO2
-		( draw ) STHkr .Screen/sprite DEO
-	#0f AND #0005 SFT2 ;font-hex ADD2 .Screen/addr DEO2
-	.Screen/x DEI2 #0008 ADD2 .Screen/x DEO2
-		( draw ) STHr .Screen/sprite DEO
+(
+@|assets )
 
-JMP2r
+@snake-icns [ 7eff ffff ffff ff7e ]
+	&face [ 7eff ffdb ffe7 ff7e ]
 
-( assets )
-
-@snake-icns [
-	7eff ffff ffff ff7e ]
-	&face [
-	7eff ffdb ffe7 ff7e ]
 @apple-chr [
-	0000 76ff ffff 7e3c
-	1008 0000 0000 0000 ]
+	0000 76ff ffff 7e3c 1008 0000 0000 0000 ]
+
 @font-hex [
 	007c 8282 8282 827c 0030 1010 1010 1010
 	007c 8202 7c80 80fe 007c 8202 1c02 827c
