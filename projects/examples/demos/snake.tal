@@ -7,8 +7,8 @@
 |000
 
 	@arena &w $1 &h $1
-	@apple &x $1 &y $1
-	@snake &direction $1 &length $1 &dead $1 &x $1 &y $1 &tail $40
+	@apple &pos &x $1 &y $1
+	@snake &pos &x $1 &y $1 &direction $1 &length $1 &dead $1 &tail $40
 
 |100
 
@@ -64,7 +64,7 @@
 
 @<move> ( -- )
 	( | tail )
-	.snake/x LDZ2 STH2
+	.snake/pos LDZ2 STH2
 	.snake/length LDZ #00
 	&>loop ( -- )
 		( pop ) DUPk ADD .snake/tail ADD LDZ2 STH2
@@ -83,14 +83,15 @@
 		.snake/x LDZ INC .arena/w LDZ DIVk MUL SUB .snake/x STZ }
 	POP
 	( | detect collision with apple )
-	.snake/x LDZ2 .apple/x LDZ2 NEQ2 ?{
+	.snake/pos LDZ2 .apple/pos LDZ2 NEQ2 ?{
 		#00 <draw-apple>
 		.snake/length LDZ INC .snake/length STZ
 		<add-apple>
 		<move> }
+	( | detect collision with body )
 	.snake/length LDZ #01
 	&>loop-body ( -- )
-		DUPk ADD .snake/tail ADD LDZ2 .snake/x LDZ2 NEQ2 ?{
+		DUPk ADD .snake/tail ADD LDZ2 .snake/pos LDZ2 NEQ2 ?{
 			[ LIT2 01 -snake/dead ] STZ
 			#03 <draw-snake> }
 		INC GTHk ?&>loop-body
@@ -111,14 +112,14 @@
 	;snake-icns .Screen/addr DEO2
 	[ LIT2 -snake/tail -snake/length ] LDZ DUP ADD OVR ADD SWP
 	&>loop ( -- )
-		LDZk #0005 SFT2 .Screen/x DEO2
-		INCk LDZ #0005 SFT2 .Screen/y DEO2
+		LDZ2k #0005 SFT2 .Screen/y DEO2
+		#0005 SFT2 .Screen/x DEO2
 		DUPr [ LITr -Screen/sprite ] DEOr
 		INC INC GTHk ?&>loop
 	POP2
 	( | draw head )
-	.snake/x LDZ #0005 SFT2 .Screen/x DEO2
-	.snake/y LDZ #0005 SFT2 .Screen/y DEO2
+	.snake/pos LDZ2 #0005 SFT2 .Screen/y DEO2
+	#0005 SFT2 .Screen/x DEO2
 	;snake-icns/face .Screen/addr DEO2
 	[ LITr -Screen/sprite ] DEOr
 	JMP2r
@@ -126,7 +127,7 @@
 @<draw-apple> ( color -- )
 	.apple/x LDZ #0005 SFT2 .Screen/x DEO2
 	.apple/y LDZ #0005 SFT2 .Screen/y DEO2
-	STHk ;apple-chr ;fill-icn [ STHr ?{ SWP2 } POP2 ] .Screen/addr DEO2
+	STHk ;apple-chr ;fill-icn [ LITr 01 JCNr SWP2 POP2 ] .Screen/addr DEO2
 	.Screen/sprite DEO
 	JMP2r
 
