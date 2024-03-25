@@ -37,7 +37,7 @@ typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 ptr, length, label_len, macro_len, refs_len;
-	char scope[0x40], lambda_name[0x05], *location, *entry;
+	char scope[0x40], lambda_name[0x05], *location;
 	Label labels[0x400];
 	Macro macros[0x100];
 	Reference refs[0x1000];
@@ -504,23 +504,14 @@ int
 main(int argc, char *argv[])
 {
 	FILE *src, *dst;
-	if(argc == 1)
-		return error_top("usage", "uxnasm [-v] input.tal output.rom");
-	if(argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 25 Mar 2024.\n");
-	if(!(src = fopen(setlocation(argv[1]), "r")))
-		return !error_top("Invalid input", argv[1]);
-	p.entry = argv[1];
-	if(!assemble(src))
-		return !error_top("Assembly", "Failed to assemble rom.");
-	if(!(dst = fopen(argv[2], "wb")))
-		return !error_top("Invalid Output", argv[2]);
-	if(p.length <= TRIM)
-		return !error_top("Assembly", "Output rom is empty.");
+	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
+	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 25 Mar 2024.\n");
+	if(!(src = fopen(setlocation(argv[1]), "r"))) return !error_top("Invalid input", argv[1]);
+	if(!assemble(src)) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
+	if(p.length <= TRIM) return !error_top("Assembly", "Output rom is empty.");
+	review(argv[2]);
 	fwrite(p.data + TRIM, p.length - TRIM, 1, dst);
-	if(!scmp(argv[2], "-", 2)) {
-		review(argv[2]);
-		writesym(argv[2]);
-	}
+	writesym(argv[2]);
 	return 0;
 }
