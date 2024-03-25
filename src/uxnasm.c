@@ -156,14 +156,11 @@ makemacro(char *name, FILE *f)
 {
 	Macro *m;
 	char word[0x40];
-	if(findmacro(name))
-		return error_asm("Macro duplicate", name);
-	if(sihx(name) && slen(name) % 2 == 0)
-		return error_asm("Macro name is hex number", name);
-	if(isopcode(name) || !slen(name))
-		return error_asm("Macro name is invalid", name);
-	if(p.macro_len == 0x100)
-		return error_asm("Macros limit exceeded", name);
+	if(!slen(name)) return error_asm("Macro is empty", name);
+	if(findmacro(name)) return error_asm("Macro is duplicate", name);
+	if(sihx(name)) return error_asm("Macro is hex number", name);
+	if(isopcode(name)) return error_asm("Macro is opcode", name);
+	if(p.macro_len == 0x100) return error_asm("Macros limit exceeded", name);
 	m = &p.macros[p.macro_len++];
 	scpy(name, m->name, 0x40);
 	while(fscanf(f, "%63s", word) == 1) {
@@ -182,16 +179,12 @@ static int
 makelabel(char *name)
 {
 	Label *l;
-	if(findlabel(name))
-		return error_asm("Label duplicate", name);
-	if(sihx(name) && (slen(name) == 2 || slen(name) == 4))
-		return error_asm("Label name is hex number", name);
-	if(isopcode(name) || !slen(name))
-		return error_asm("Label name is invalid", name);
-	if(isrune(name[0]))
-		return error_asm("Label name is runic", name);
-	if(p.label_len == 0x400)
-		return error_asm("Labels limit exceeded", name);
+	if(!slen(name)) return error_asm("Label is empty", name);
+	if(findlabel(name)) return error_asm("Label is duplicate", name);
+	if(sihx(name)) return error_asm("Label is hex number", name);
+	if(isopcode(name)) return error_asm("Label is opcode", name);
+	if(isrune(name[0])) return error_asm("Label name is runic", name);
+	if(p.label_len == 0x400) return error_asm("Labels limit exceeded", name);
 	l = &p.labels[p.label_len++];
 	l->addr = p.ptr;
 	l->refs = 0;
@@ -260,12 +253,6 @@ writebyte(Uint8 b)
 	p.data[p.ptr++] = b;
 	p.length = p.ptr;
 	return 1;
-}
-
-static int
-writeopcode(char *w)
-{
-	return writebyte(findopcode(w));
 }
 
 static int
@@ -396,7 +383,7 @@ parse(char *w, FILE *f)
 	default:
 		/* opcode */
 		if(isopcode(w))
-			return writeopcode(w);
+			return writebyte(findopcode(w));
 		/* raw byte */
 		else if(sihx(w) && slen(w) == 2)
 			return writebyte(shex(w));
@@ -481,9 +468,7 @@ review(char *filename)
 {
 	int i;
 	for(i = 0; i < p.label_len; i++)
-		if(p.labels[i].name[0] >= 'A' && p.labels[i].name[0] <= 'Z')
-			continue; /* Ignore capitalized labels(devices) */
-		else if(!p.labels[i].refs)
+		if(p.labels[i].name[0] - 'A' > 25 && !p.labels[i].refs)
 			fprintf(stdout, "-- Unused label: %s\n", p.labels[i].name);
 	fprintf(stdout,
 		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
