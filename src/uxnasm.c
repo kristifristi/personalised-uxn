@@ -35,10 +35,9 @@ typedef struct {
 
 typedef struct {
 	Uint8 data[LENGTH];
-	Uint8 lambda_stack[0x100], lambda_ptr, lambda_count;
-	char scope[0x40], lambda[0x10], *location, *entry;
-	unsigned int ptr, length;
-	Uint16 label_len, macro_len, refs_len;
+	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
+	Uint16 ptr, length, label_len, macro_len, refs_len;
+	char scope[0x40], lambda_name[0x05], *location, *entry;
 	Label labels[0x400];
 	Macro macros[0x100];
 	Reference refs[0x1000];
@@ -56,6 +55,7 @@ static char ops[][4] = {
 };
 
 static char *runes = "|$@&,_.-;=!?#\"%~";
+static char *hexad = "0123456789abcdef";
 
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* string compare */
 static int   sihx(char *s) { int i = 0; char c; while((c = s[i++])) if(!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) return 0; return i > 1; } /* string is hexadecimal */
@@ -205,10 +205,11 @@ makelabel(char *name)
 static char *
 makelambda(int id)
 {
-	scpy("lambda", p.lambda, 0x07);
-	p.lambda[6] = '0' + (id >> 0x4);
-	p.lambda[7] = '0' + (id & 0xf);
-	return p.lambda;
+	p.lambda_name[0] = 0xce;
+	p.lambda_name[1] = 0xbb;
+	p.lambda_name[2] = hexad[id >> 0x4];
+	p.lambda_name[3] = hexad[id & 0xf];
+	return p.lambda_name;
 }
 
 static int
@@ -220,8 +221,8 @@ makereference(char *scope, char *label, char rune, Uint16 addr)
 		return error_asm("References limit exceeded", label);
 	r = &p.refs[p.refs_len++];
 	if(label[0] == '{') {
-		p.lambda_stack[p.lambda_ptr++] = p.lambda_count;
-		scpy(makelambda(p.lambda_count++), r->name, 0x40);
+		p.lambda_stack[p.lambda_ptr++] = p.lambda_len;
+		scpy(makelambda(p.lambda_len++), r->name, 0x40);
 	} else if(label[0] == '&' || label[0] == '/') {
 		if(!sublabel(subw, scope, label + 1))
 			return error_asm("Invalid sublabel", label);
@@ -521,7 +522,7 @@ main(int argc, char *argv[])
 	if(argc == 1)
 		return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 7 Mar 2024.\n");
+		return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 25 Mar 2024.\n");
 	if(!(src = fopen(setlocation(argv[1]), "r")))
 		return !error_top("Invalid input", argv[1]);
 	p.entry = argv[1];
