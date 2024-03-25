@@ -220,7 +220,7 @@ makesublabel(char *src, char *scope, char *name)
 }
 
 static int
-makereference(char *scope, char *label, char rune, Uint16 addr)
+addref(char *scope, char *label, char rune, Uint16 addr)
 {
 	char subw[0x40], parent[0x40];
 	Reference *r;
@@ -271,15 +271,7 @@ writeopcode(char *w)
 static int
 writeshort(Uint16 s, int lit)
 {
-	if(lit)
-		if(!writebyte(findopcode("LIT2"))) return 0;
-	return writebyte(s >> 8) && writebyte(s & 0xff);
-}
-
-static int
-writelitbyte(Uint8 b)
-{
-	return writebyte(findopcode("LIT")) && writebyte(b);
+	return (lit ? writebyte(findopcode("LIT2")) : 1) && writebyte(s >> 8) && writebyte(s & 0xff);
 }
 
 static int
@@ -366,29 +358,29 @@ parse(char *w, FILE *f)
 		break;
 	case '#': /* literals hex */
 		if(sihx(w + 1) && slen(w) == 3)
-			return writelitbyte(shex(w + 1));
+			return writebyte(findopcode("LIT")) && writebyte(shex(w + 1));
 		else if(sihx(w + 1) && slen(w) == 5)
 			return writeshort(shex(w + 1), 1);
 		else
 			return error_asm("Invalid hex literal", w);
 		break;
 	case '_': /* raw byte relative */
-		return makereference(p.scope, w + 1, w[0], p.ptr) && writebyte(0xff);
+		return addref(p.scope, w + 1, w[0], p.ptr) && writebyte(0xff);
 	case ',': /* literal byte relative */
-		return makereference(p.scope, w + 1, w[0], p.ptr + 1) && writelitbyte(0xff);
+		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case '-': /* raw byte absolute */
-		return makereference(p.scope, w + 1, w[0], p.ptr) && writebyte(0xff);
+		return addref(p.scope, w + 1, w[0], p.ptr) && writebyte(0xff);
 	case '.': /* literal byte zero-page */
-		return makereference(p.scope, w + 1, w[0], p.ptr + 1) && writelitbyte(0xff);
+		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
 	case '=': /* raw short absolute */
-		return makereference(p.scope, w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
+		return addref(p.scope, w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
 	case ';': /* literal short absolute */
-		return makereference(p.scope, w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
+		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
 	case '?': /* JCI */
-		return makereference(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
+		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
 	case '!': /* JMI */
-		return makereference(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
+		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
 	case '"': /* raw string */
 		i = 0;
 		while((c = w[++i]))
@@ -418,7 +410,7 @@ parse(char *w, FILE *f)
 					return 0;
 			return 1;
 		} else
-			return makereference(p.scope, w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
+			return addref(p.scope, w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
 	}
 	return 1;
 }
