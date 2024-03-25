@@ -90,16 +90,6 @@ setlocation(char *name)
 	return name;
 }
 
-static char *
-sublabel(char *src, char *scope, char *name)
-{
-	if(slen(scope) + slen(name) >= 0x3f) {
-		error_asm("Sublabel length too long", name);
-		return NULL;
-	}
-	return scat(scat(scpy(scope, src, 0x40), "/"), name);
-}
-
 static Macro *
 findmacro(char *name)
 {
@@ -125,24 +115,40 @@ findopcode(char *s)
 {
 	int i;
 	for(i = 0; i < 0x20; i++) {
-		int m = 0;
+		int m = 3;
 		if(!scmp(ops[i], s, 3))
 			continue;
-		if(!i) i |= (1 << 7); /* force keep for LIT */
-		while(s[3 + m]) {
-			if(s[3 + m] == '2')
-				i |= (1 << 5); /* mode: short */
-			else if(s[3 + m] == 'r')
-				i |= (1 << 6); /* mode: return */
-			else if(s[3 + m] == 'k')
-				i |= (1 << 7); /* mode: keep */
+		if(!i)
+			i |= (1 << 7);
+		while(s[m]) {
+			if(s[m] == '2')
+				i |= (1 << 5);
+			else if(s[m] == 'r')
+				i |= (1 << 6);
+			else if(s[m] == 'k')
+				i |= (1 << 7);
 			else
-				return 0; /* failed to match */
+				return 0;
 			m++;
 		}
 		return i;
 	}
 	return 0;
+}
+
+static int
+isrune(char c)
+{
+	char cc, *r = runes;
+	while((cc = *r++))
+		if(c == cc) return 1;
+	return 0;
+}
+
+static int
+isopcode(char *s)
+{
+	return findopcode(s) || scmp(s, "BRK", 4);
 }
 
 static int
@@ -154,7 +160,7 @@ makemacro(char *name, FILE *f)
 		return error_asm("Macro duplicate", name);
 	if(sihx(name) && slen(name) % 2 == 0)
 		return error_asm("Macro name is hex number", name);
-	if(findopcode(name) || scmp(name, "BRK", 4) || !slen(name))
+	if(isopcode(name) || !slen(name))
 		return error_asm("Macro name is invalid", name);
 	if(p.macro_len == 0x100)
 		return error_asm("Macros limit exceeded", name);
@@ -173,15 +179,6 @@ makemacro(char *name, FILE *f)
 }
 
 static int
-isrune(char c)
-{
-	char cc, *r = runes;
-	while((cc = *r++))
-		if(c == cc) return 1;
-	return 0;
-}
-
-static int
 makelabel(char *name)
 {
 	Label *l;
@@ -189,7 +186,7 @@ makelabel(char *name)
 		return error_asm("Label duplicate", name);
 	if(sihx(name) && (slen(name) == 2 || slen(name) == 4))
 		return error_asm("Label name is hex number", name);
-	if(findopcode(name) || scmp(name, "BRK", 4) || !slen(name))
+	if(isopcode(name) || !slen(name))
 		return error_asm("Label name is invalid", name);
 	if(isrune(name[0]))
 		return error_asm("Label name is runic", name);
@@ -205,11 +202,21 @@ makelabel(char *name)
 static char *
 makelambda(int id)
 {
-	p.lambda_name[0] = 0xce;
-	p.lambda_name[1] = 0xbb;
+	p.lambda_name[0] = (char)0xce;
+	p.lambda_name[1] = (char)0xbb;
 	p.lambda_name[2] = hexad[id >> 0x4];
 	p.lambda_name[3] = hexad[id & 0xf];
 	return p.lambda_name;
+}
+
+static char *
+makesublabel(char *src, char *scope, char *name)
+{
+	if(slen(scope) + slen(name) >= 0x3f) {
+		error_asm("Sublabel length too long", name);
+		return NULL;
+	}
+	return scat(scat(scpy(scope, src, 0x40), "/"), name);
 }
 
 static int
@@ -224,7 +231,7 @@ makereference(char *scope, char *label, char rune, Uint16 addr)
 		p.lambda_stack[p.lambda_ptr++] = p.lambda_len;
 		scpy(makelambda(p.lambda_len++), r->name, 0x40);
 	} else if(label[0] == '&' || label[0] == '/') {
-		if(!sublabel(subw, scope, label + 1))
+		if(!makesublabel(subw, scope, label + 1))
 			return error_asm("Invalid sublabel", label);
 		scpy(subw, r->name, 0x40);
 	} else {
@@ -246,7 +253,7 @@ writebyte(Uint8 b)
 {
 	if(p.ptr < TRIM)
 		return error_asm("Writing in zero-page", "");
-	else if(p.ptr > 0xffff)
+	else if(p.ptr == 0xffff)
 		return error_asm("Writing after the end of RAM", "");
 	else if(p.ptr < p.length)
 		return error_asm("Memory overwrite", "");
@@ -323,7 +330,7 @@ parse(char *w, FILE *f)
 		if(sihx(w + 1))
 			p.ptr = shex(w + 1);
 		else if(w[1] == '&') {
-			if(!sublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
+			if(!makesublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
 				return error_asm("Invalid sublabel", w);
 			p.ptr = l->addr;
 		} else {
@@ -336,7 +343,7 @@ parse(char *w, FILE *f)
 		if(sihx(w + 1))
 			p.ptr += shex(w + 1);
 		else if(w[1] == '&') {
-			if(!sublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
+			if(!makesublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
 				return error_asm("Invalid sublabel", w);
 			p.ptr += l->addr;
 		} else {
@@ -354,7 +361,7 @@ parse(char *w, FILE *f)
 		p.scope[i] = '\0';
 		break;
 	case '&': /* sublabel */
-		if(!sublabel(subw, p.scope, w + 1) || !makelabel(subw))
+		if(!makesublabel(subw, p.scope, w + 1) || !makelabel(subw))
 			return error_asm("Invalid sublabel", w);
 		break;
 	case '#': /* literals hex */
@@ -396,7 +403,7 @@ parse(char *w, FILE *f)
 		if(slen(w) == 1) break; /* else fallthrough */
 	default:
 		/* opcode */
-		if(findopcode(w) || scmp(w, "BRK", 4))
+		if(isopcode(w))
 			return writeopcode(w);
 		/* raw byte */
 		else if(sihx(w) && slen(w) == 2)
