@@ -313,24 +313,31 @@ doinclude(char *filename)
 }
 
 static int
+walkcomment(char *w, FILE *f)
+{
+	int i = 1;
+	char word[0x40];
+	if(slen(w) != 1)
+		fprintf(stderr, "-- Malformed comment: %s\n", w);
+	while(fscanf(f, "%63s", word) == 1) {
+		if(slen(word) != 1)
+			continue;
+		else if(word[0] == '(')
+			i++;
+		else if(word[0] == ')' && --i < 1)
+			break;
+	}
+	return 1;
+}
+
+static int
 parse(char *w, FILE *f)
 {
 	int i;
-	char word[0x40], c;
+	char c;
 	Macro *m;
 	switch(w[0]) {
-	case '(': /* comment */
-		if(slen(w) != 1) fprintf(stderr, "-- Malformed comment: %s\n", w);
-		i = 1; /* track nested comment depth */
-		while(fscanf(f, "%63s", word) == 1) {
-			if(slen(word) != 1)
-				continue;
-			else if(word[0] == '(')
-				i++;
-			else if(word[0] == ')' && --i < 1)
-				break;
-		}
-		break;
+	case '(': return walkcomment(w, f);
 	case '~': return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
 	case '@': return !makelabel(w + 1, 1) ? error_asm("Invalid label") : 1;

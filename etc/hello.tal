@@ -1,5 +1,7 @@
 ( init )
 
+%emit { #18 DEO }
+
 |0100 @program
 
 	#1234 SWP
@@ -11,8 +13,8 @@
 	;hello-word
 
 	&while
-		( send ) LDAk #18 DEO
-		( loop ) INC2 LDAk ,&while JCN
+		( send ) LDAk emit
+		( loop ) INC2 LDAk ?&while
 	POP2
 
 	#010f DEO
