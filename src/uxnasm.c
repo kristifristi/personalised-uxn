@@ -38,14 +38,13 @@ typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 line, length, label_len, macro_len, refs_len;
-	char scope[0x40], lambda_name[0x05], *location;
+	char lambda_name[0x05], *location;
 	Label labels[0x400];
 	Macro macros[0x100];
 	Reference refs[0x1000];
 } Program;
 
-char sublabel[0x40];
-char token[0x40];
+char token[0x40], scope[0x40], sublabel[0x40];
 
 Program p;
 
@@ -84,7 +83,7 @@ error_top(const char *name, const char *msg)
 static int
 error_asm(const char *name)
 {
-	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, p.scope, p.location, p.line);
+	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, p.location, p.line);
 	return 0;
 }
 
@@ -103,7 +102,7 @@ findlabel(char *name)
 {
 	int i;
 	if(name[0] == '&')
-		name = makesublabel(sublabel, p.scope, name + 1);
+		name = makesublabel(sublabel, scope, name + 1);
 	for(i = 0; i < p.label_len; i++)
 		if(scmp(p.labels[i].name, name, 0x40))
 			return &p.labels[i];
@@ -171,7 +170,7 @@ makelabel(char *name)
 {
 	Label *l;
 	if(name[0] == '&')
-		name = makesublabel(sublabel, p.scope, name + 1);
+		name = makesublabel(sublabel, scope, name + 1);
 	if(!slen(name)) return error_asm("Label is empty");
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	if(sihx(name)) return error_asm("Label is hex number");
@@ -340,9 +339,9 @@ parse(char *w, FILE *f)
 		if(!makelabel(w + 1))
 			return error_asm("Invalid label");
 		i = 0;
-		while(w[i + 1] != '/' && i < 0x3e && (p.scope[i] = w[i + 1]))
+		while(w[i + 1] != '/' && i < 0x3e && (scope[i] = w[i + 1]))
 			i++;
-		p.scope[i] = '\0';
+		scope[i] = '\0';
 		break;
 	case '&': /* sublabel */
 		if(!makelabel(w))
@@ -357,22 +356,22 @@ parse(char *w, FILE *f)
 			return error_asm("Invalid hex literal");
 		break;
 	case '_': /* raw byte relative */
-		return addref(p.scope, w + 1, w[0], p.ptr) && writebyte(0xff);
+		return addref(scope, w + 1, w[0], p.ptr) && writebyte(0xff);
 	case ',': /* literal byte relative */
-		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
+		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case '-': /* raw byte absolute */
-		return addref(p.scope, w + 1, w[0], p.ptr) && writebyte(0xff);
+		return addref(scope, w + 1, w[0], p.ptr) && writebyte(0xff);
 	case '.': /* literal byte zero-page */
-		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
+		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
 	case '=': /* raw short absolute */
-		return addref(p.scope, w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
+		return addref(scope, w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
 	case ';': /* literal short absolute */
-		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
+		return addref(scope, w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
 	case '?': /* JCI */
-		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
+		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
 	case '!': /* JMI */
-		return addref(p.scope, w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
+		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
 	case '"': /* raw string */
 		i = 0;
 		while((c = w[++i]))
@@ -402,7 +401,7 @@ parse(char *w, FILE *f)
 					return 0;
 			return 1;
 		} else
-			return addref(p.scope, w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
+			return addref(scope, w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
 	}
 	return 1;
 }
@@ -497,7 +496,7 @@ main(int argc, char *argv[])
 {
 	FILE *dst;
 	p.ptr = 0x100;
-	scpy("on-reset", p.scope, 0x40);
+	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 26 Mar 2024.\n");
 	if(!doinclude(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
