@@ -210,13 +210,13 @@ makelambda(int id)
 }
 
 static char *
-makesublabel(char *src, char *scope, char *name)
+makesublabel(char *buf, char *scope, char *name)
 {
 	if(slen(scope) + slen(name) >= 0x3f) {
 		error_asm("Sublabel length too long");
 		return NULL;
 	}
-	return scat(scat(scpy(scope, src, 0x40), "/"), name);
+	return scat(scat(scpy(scope, buf, 0x40), "/"), name);
 }
 
 static int
@@ -237,7 +237,7 @@ makepad(char *w)
 static int
 addref(char *scope, char *label, char rune, Uint16 addr)
 {
-	char subw[0x40], parent[0x40];
+	char parent[0x40];
 	Reference *r;
 	if(p.refs_len >= 0x1000)
 		return error_asm("References limit exceeded");
@@ -246,9 +246,8 @@ addref(char *scope, char *label, char rune, Uint16 addr)
 		p.lambda_stack[p.lambda_ptr++] = p.lambda_len;
 		scpy(makelambda(p.lambda_len++), r->name, 0x40);
 	} else if(label[0] == '&' || label[0] == '/') {
-		if(!makesublabel(subw, scope, label + 1))
+		if(!makesublabel(r->name, scope, label + 1))
 			return error_asm("Invalid sublabel");
-		scpy(subw, r->name, 0x40);
 	} else {
 		int pos = spos(label, '/');
 		if(pos > 0) {
