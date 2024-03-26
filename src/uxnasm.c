@@ -316,18 +316,17 @@ static int
 walkcomment(char *w, FILE *f)
 {
 	int i = 1;
-	char word[0x40];
+	unsigned int buf;
 	if(slen(w) != 1)
-		fprintf(stderr, "-- Malformed comment: %s\n", w);
-	while(fscanf(f, "%63s", word) == 1) {
-		if(slen(word) != 1)
-			continue;
-		else if(word[0] == '(')
+		return 0;
+	while(fread(&buf, 1, 1, f)) {
+		char c = (char)buf;
+		if(c == '(')
 			i++;
-		else if(word[0] == ')' && --i < 1)
-			break;
+		else if(c == ')' && --i < 1)
+			return 1;
 	}
-	return 1;
+	return 0;
 }
 
 static int
@@ -337,7 +336,7 @@ parse(char *w, FILE *f)
 	char c;
 	Macro *m;
 	switch(w[0]) {
-	case '(': return walkcomment(w, f);
+	case '(': return !walkcomment(w, f) ? error_asm("Invalid comment") : 1;
 	case '~': return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
 	case '@': return !makelabel(w + 1, 1) ? error_asm("Invalid label") : 1;
