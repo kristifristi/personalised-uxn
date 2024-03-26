@@ -70,7 +70,7 @@ static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); whi
 /* clang-format on */
 
 static int parse(char *w, FILE *f);
-static char *makesublabel(char *src, char *scope, char *name);
+static char *makesublabel(char *src, char *name);
 
 static int
 error_top(const char *name, const char *msg)
@@ -101,7 +101,7 @@ findlabel(char *name)
 {
 	int i;
 	if(name[0] == '&')
-		name = makesublabel(sublabel, scope, name + 1);
+		name = makesublabel(sublabel, name + 1);
 	for(i = 0; i < p.label_len; i++)
 		if(scmp(p.labels[i].name, name, 0x40))
 			return &p.labels[i];
@@ -169,7 +169,7 @@ makelabel(char *name)
 {
 	Label *l;
 	if(name[0] == '&')
-		name = makesublabel(sublabel, scope, name + 1);
+		name = makesublabel(sublabel, name + 1);
 	if(!slen(name)) return error_asm("Label is empty");
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	if(sihx(name)) return error_asm("Label is hex number");
@@ -194,7 +194,7 @@ makelambda(int id)
 }
 
 static char *
-makesublabel(char *buf, char *scope, char *name)
+makesublabel(char *buf, char *name)
 {
 	if(slen(scope) + slen(name) >= 0x3f) {
 		error_asm("Sublabel length too long");
@@ -229,7 +229,7 @@ addref(char *label, char rune, Uint16 addr)
 		p.lambda_stack[p.lambda_ptr++] = p.lambda_len;
 		scpy(makelambda(p.lambda_len++), r->name, 0x40);
 	} else if(label[0] == '&' || label[0] == '/') {
-		if(!makesublabel(r->name, scope, label + 1))
+		if(!makesublabel(r->name, label + 1))
 			return error_asm("Invalid sublabel");
 	} else {
 		int pos = cndx(label, '/');
