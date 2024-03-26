@@ -300,12 +300,9 @@ static int
 doinclude(char *filename)
 {
 	FILE *f;
-	char w[0x40];
 	if(!(f = fopen(setlocation(filename), "r")))
 		return error_top("Include missing", filename);
-	while(fscanf(f, "%63s", w) == 1)
-		if(!parse(w, f))
-			return error_top("Unknown token", w);
+	tokenize(f);
 	fclose(f);
 	return 1;
 }
