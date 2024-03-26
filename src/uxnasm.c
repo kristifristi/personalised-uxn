@@ -179,6 +179,8 @@ static int
 makelabel(char *name)
 {
 	Label *l;
+	if(name[0] == '&')
+		name = makesublabel(sublabel, p.scope, name + 1);
 	if(!slen(name)) return error_asm("Label is empty");
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	if(sihx(name)) return error_asm("Label is hex number");
@@ -313,7 +315,7 @@ static int
 parse(char *w, FILE *f)
 {
 	int i;
-	char word[0x40], subw[0x40], c;
+	char word[0x40], c;
 	Macro *m;
 	switch(w[0]) {
 	case '(': /* comment */
@@ -350,7 +352,7 @@ parse(char *w, FILE *f)
 		p.scope[i] = '\0';
 		break;
 	case '&': /* sublabel */
-		if(!makesublabel(subw, p.scope, w + 1) || !makelabel(subw))
+		if(!makelabel(w))
 			return error_asm("Invalid sublabel");
 		break;
 	case '#': /* literals hex */
