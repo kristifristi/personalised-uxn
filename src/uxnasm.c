@@ -218,7 +218,7 @@ makepad(char *w)
 }
 
 static int
-addref(char *scope, char *label, char rune, Uint16 addr)
+addref(char *label, char rune, Uint16 addr)
 {
 	char parent[0x40];
 	Reference *r;
@@ -355,22 +355,22 @@ parse(char *w, FILE *f)
 			return error_asm("Invalid hex literal");
 		break;
 	case '_': /* raw byte relative */
-		return addref(scope, w + 1, w[0], p.ptr) && writebyte(0xff);
+		return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
 	case ',': /* literal byte relative */
-		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case '-': /* raw byte absolute */
-		return addref(scope, w + 1, w[0], p.ptr) && writebyte(0xff);
+		return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
 	case '.': /* literal byte zero-page */
-		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
 	case '=': /* raw short absolute */
-		return addref(scope, w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
+		return addref(w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
 	case ';': /* literal short absolute */
-		return addref(scope, w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
+		return addref(w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
 	case '?': /* JCI */
-		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
 	case '!': /* JMI */
-		return addref(scope, w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
 	case '"': /* raw string */
 		i = 0;
 		while((c = w[++i]))
@@ -400,7 +400,7 @@ parse(char *w, FILE *f)
 					return 0;
 			return 1;
 		} else
-			return addref(scope, w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
+			return addref(w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
 	}
 	return 1;
 }
