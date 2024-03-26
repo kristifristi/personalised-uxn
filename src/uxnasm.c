@@ -88,14 +88,6 @@ error_asm(const char *name)
 	return 0;
 }
 
-static char *
-setlocation(char *name)
-{
-	p.location = name;
-	p.line = 0;
-	return name;
-}
-
 static Macro *
 findmacro(char *name)
 {
@@ -302,9 +294,11 @@ static int
 doinclude(char *filename)
 {
 	FILE *f;
-	int res;
-	if(!(f = fopen(setlocation(filename), "r")))
+	int res = 0;
+	if(!(f = fopen(filename, "r")))
 		return error_top("Invalid source", filename);
+	p.location = filename;
+	p.line = 0;
 	res = tokenize(f);
 	fclose(f);
 	return res;
