@@ -60,13 +60,14 @@ static char ops[][4] = {
 static char *runes = "|$@&,_.-;=!?#\"%~";
 static char *hexad = "0123456789abcdef";
 
-static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* string compare */
-static int   sihx(char *s) { int i = 0; char c; while((c = s[i++])) if(!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) return 0; return i > 1; } /* string is hexadecimal */
-static int   shex(char *s) { int n = 0, i = 0; char c; while((c = s[i++])) if(c >= '0' && c <= '9') n = n * 16 + (c - '0'); else if(c >= 'a' && c <= 'f') n = n * 16 + 10 + (c - 'a'); return n; } /* string to num */
-static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* string length */
-static int   spos(char *s, char c) { Uint8 i = 0, j; while((j = s[i++])) if(j == c) return i; return -1; } /* character position */
-static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* string copy */
-static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* string cat */
+static int   cndx(char *s, char t) { char cc, *r = s; while((cc = *r++)) if(t == cc) return 1; return 0; } /* chr in str */
+static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
+static int   sihx(char *s) { int i = 0; char c; while((c = s[i++])) if(!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) return 0; return i > 1; } /* str is hex */
+static int   shex(char *s) { int n = 0, i = 0; char c; while((c = s[i++])) if(c >= '0' && c <= '9') n = n * 16 + (c - '0'); else if(c >= 'a' && c <= 'f') n = n * 16 + 10 + (c - 'a'); return n; } /* str to num */
+static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
+static int   spos(char *s, char c) { Uint8 i = 0, j; while((j = s[i++])) if(j == c) return i; return -1; } /* chr position */
+static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
+static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
 
 /* clang-format on */
 
@@ -144,15 +145,6 @@ findopcode(char *s)
 }
 
 static int
-isrune(char c)
-{
-	char cc, *r = runes;
-	while((cc = *r++))
-		if(c == cc) return 1;
-	return 0;
-}
-
-static int
 isopcode(char *s)
 {
 	return findopcode(s) || scmp(s, "BRK", 4);
@@ -190,7 +182,7 @@ makelabel(char *name)
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	if(sihx(name)) return error_asm("Label is hex number");
 	if(isopcode(name)) return error_asm("Label is opcode");
-	if(isrune(name[0])) return error_asm("Label name is runic");
+	if(cndx(runes, name[0])) return error_asm("Label name is runic");
 	if(p.label_len == 0x400) return error_asm("Labels limit exceeded");
 	l = &p.labels[p.label_len++];
 	l->addr = p.ptr;
@@ -514,7 +506,7 @@ main(int argc, char *argv[])
 {
 	FILE *src, *dst;
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
-	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 25 Mar 2024.\n");
+	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 26 Mar 2024.\n");
 	if(!(src = fopen(setlocation(argv[1]), "r"))) return !error_top("Invalid input", argv[1]);
 	if(!assemble(src)) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
