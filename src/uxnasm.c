@@ -278,10 +278,9 @@ writehex(char *w)
 static int
 tokenize(FILE *f)
 {
-	unsigned int buf;
+	char c;
 	char *cptr = token;
-	while(fread(&buf, 1, 1, f)) {
-		char c = (char)buf;
+	while(fread(&c, 1, 1, f)) {
 		if(c < 0x21) {
 			*cptr++ = 0x00;
 			if(c == 0x0a)
@@ -315,17 +314,15 @@ doinclude(char *filename)
 static int
 walkcomment(char *w, FILE *f)
 {
-	int i = 1;
-	unsigned int buf;
-	if(slen(w) != 1)
-		return 0;
-	while(fread(&buf, 1, 1, f)) {
-		char c = (char)buf;
-		if(c == '(')
-			i++;
-		else if(c == ')' && --i < 1)
-			return 1;
-	}
+	int depth = 1;
+	char c;
+	if(slen(w) == 1)
+		while(fread(&c, 1, 1, f)) {
+			if(c == '(')
+				depth++;
+			else if(c == ')' && --depth < 1)
+				return 1;
+		}
 	return 0;
 }
 
