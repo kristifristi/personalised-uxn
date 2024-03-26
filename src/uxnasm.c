@@ -38,13 +38,13 @@ typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 line, length, label_len, macro_len, refs_len;
-	char lambda_name[0x05], *location;
+	char *location;
 	Label labels[0x400];
 	Macro macros[0x100];
 	Reference refs[0x1000];
 } Program;
 
-char token[0x40], scope[0x40], sublabel[0x40];
+char token[0x40], scope[0x40], sublabel[0x40], lambda[0x05];
 
 Program p;
 
@@ -187,11 +187,11 @@ makelabel(char *name)
 static char *
 makelambda(int id)
 {
-	p.lambda_name[0] = (char)0xce;
-	p.lambda_name[1] = (char)0xbb;
-	p.lambda_name[2] = hexad[id >> 0x4];
-	p.lambda_name[3] = hexad[id & 0xf];
-	return p.lambda_name;
+	lambda[0] = (char)0xce;
+	lambda[1] = (char)0xbb;
+	lambda[2] = hexad[id >> 0x4];
+	lambda[3] = hexad[id & 0xf];
+	return lambda;
 }
 
 static char *
