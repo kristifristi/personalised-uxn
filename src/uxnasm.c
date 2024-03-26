@@ -216,6 +216,26 @@ makesublabel(char *src, char *scope, char *name)
 }
 
 static int
+makepad(char *w)
+{
+	char subw[0x40];
+	Label *l;
+	int rel = w[0] == '$' ? p.ptr : 0;
+	if(sihx(w + 1))
+		p.ptr = shex(w + 1) + rel;
+	else if(w[1] == '&') {
+		if(!makesublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
+			return error_asm("Invalid sublabel");
+		p.ptr = l->addr + rel;
+	} else {
+		if(!(l = findlabel(w + 1)))
+			return error_asm("Invalid label");
+		p.ptr = l->addr + rel;
+	}
+	return 1;
+}
+
+static int
 addref(char *scope, char *label, char rune, Uint16 addr)
 {
 	char subw[0x40], parent[0x40];
@@ -283,7 +303,6 @@ parse(char *w, FILE *f)
 {
 	int i;
 	char word[0x40], subw[0x40], c;
-	Label *l;
 	Macro *m;
 	switch(w[0]) {
 	case '(': /* comment */
@@ -306,31 +325,10 @@ parse(char *w, FILE *f)
 		if(!makemacro(w + 1, f))
 			return error_asm("Invalid macro");
 		break;
-	case '|': /* pad-absolute */
-		if(sihx(w + 1))
-			p.ptr = shex(w + 1);
-		else if(w[1] == '&') {
-			if(!makesublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
-				return error_asm("Invalid sublabel");
-			p.ptr = l->addr;
-		} else {
-			if(!(l = findlabel(w + 1)))
-				return error_asm("Invalid label");
-			p.ptr = l->addr;
-		}
-		break;
 	case '$': /* pad-relative */
-		if(sihx(w + 1))
-			p.ptr += shex(w + 1);
-		else if(w[1] == '&') {
-			if(!makesublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
-				return error_asm("Invalid sublabel");
-			p.ptr += l->addr;
-		} else {
-			if(!(l = findlabel(w + 1)))
-				return error_asm("Invalid label");
-			p.ptr += l->addr;
-		}
+	case '|': /* pad-absolute */
+		if(!makepad(w))
+			return error_asm("Invalid padding");
 		break;
 	case '@': /* label */
 		if(!makelabel(w + 1))
