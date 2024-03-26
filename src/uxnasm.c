@@ -165,7 +165,7 @@ makemacro(char *name, FILE *f)
 }
 
 static int
-makelabel(char *name)
+makelabel(char *name, int setscope)
 {
 	Label *l;
 	if(name[0] == '&')
@@ -180,6 +180,11 @@ makelabel(char *name)
 	l->addr = p.ptr;
 	l->refs = 0;
 	scpy(name, l->name, 0x40);
+	if(setscope) {
+		int i = 0;
+		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i])) i++;
+		scope[i] = '\0';
+	}
 	return 1;
 }
 
@@ -328,15 +333,8 @@ parse(char *w, FILE *f)
 		break;
 	case '~': return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
-	case '@': /* label */
-		if(!makelabel(w + 1))
-			return error_asm("Invalid label");
-		i = 0;
-		while(w[i + 1] != '/' && i < 0x3e && (scope[i] = w[i + 1]))
-			i++;
-		scope[i] = '\0';
-		break;
-	case '&': return !makelabel(w) ? error_asm("Invalid sublabel") : 1;
+	case '@': return !makelabel(w + 1, 1) ? error_asm("Invalid label") : 1;
+	case '&': return !makelabel(w, 0) ? error_asm("Invalid sublabel") : 1;
 	case '#': return !sihx(w + 1) || !writehex(w) ? error_asm("Invalid hexadecimal") : 1;
 	case '_': return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
 	case ',': return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
@@ -347,7 +345,7 @@ parse(char *w, FILE *f)
 	case ';': return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT2")) && writeshort(0xffff);
 	case '?': return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff);
 	case '!': return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff);
-	case '}': return !makelabel(makelambda(p.lambda_stack[--p.lambda_ptr])) ? error_asm("Invalid label") : 1;
+	case '}': return !makelabel(makelambda(p.lambda_stack[--p.lambda_ptr]), 0) ? error_asm("Invalid label") : 1;
 	case '$':
 	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':

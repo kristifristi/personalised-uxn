@@ -5,10 +5,8 @@
 	#1234 SWP
 	#010e DEO
 	#010f DEO
-BRK
+
 	#1234 #5678 SWP2
-	
-BRK
 
 	;hello-word
 
@@ -20,5 +18,7 @@ BRK
 	#010f DEO
 
 BRK
+
+@program/extend BRK
 
 @hello-word "Hello 20 "World! 00
