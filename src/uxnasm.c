@@ -300,11 +300,12 @@ static int
 doinclude(char *filename)
 {
 	FILE *f;
+	int res;
 	if(!(f = fopen(setlocation(filename), "r")))
-		return error_top("Include missing", filename);
-	tokenize(f);
+		return error_top("Invalid source", filename);
+	res = tokenize(f);
 	fclose(f);
-	return 1;
+	return res;
 }
 
 static int
@@ -460,11 +461,11 @@ resolve(void)
 }
 
 static int
-assemble(FILE *f)
+assemble(char *filename)
 {
 	p.ptr = 0x100;
 	scpy("on-reset", p.scope, 0x40);
-	return tokenize(f) && resolve();
+	return doinclude(filename) && resolve();
 }
 
 static void
@@ -506,11 +507,10 @@ writesym(char *filename)
 int
 main(int argc, char *argv[])
 {
-	FILE *src, *dst;
+	FILE *dst;
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 26 Mar 2024.\n");
-	if(!(src = fopen(setlocation(argv[1]), "r"))) return !error_top("Invalid input", argv[1]);
-	if(!assemble(src)) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!assemble(argv[1])) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
 	if(p.length <= TRIM) return !error_top("Assembly", "Output rom is empty.");
 	review(argv[2]);
