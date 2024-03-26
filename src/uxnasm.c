@@ -252,28 +252,22 @@ writebyte(Uint8 b)
 }
 
 static int
-writeshort(Uint16 s, int lit)
+writeshort(Uint16 s)
 {
-	return (lit ? writebyte(findopcode("LIT2")) : 1) && writebyte(s >> 8) && writebyte(s & 0xff);
+	return writebyte(s >> 8) && writebyte(s & 0xff);
 }
 
 static int
 writehex(char *w)
 {
-	if(w[0] == '#') {
-		if(sihx(w + 1) && slen(w) == 3)
-			return writebyte(findopcode("LIT")) && writebyte(shex(w + 1));
-		else if(sihx(w + 1) && slen(w) == 5)
-			return writeshort(shex(w + 1), 1);
-		else
-			return error_asm("Invalid hex literal");
-	} else {
-		if(sihx(w) && slen(w) == 2)
-			return writebyte(shex(w));
-		/* raw short */
-		else if(sihx(w) && slen(w) == 4)
-			return writeshort(shex(w), 0);
-	}
+	if(*w == '#')
+		writebyte(findopcode("LIT") | (slen(++w) > 2) << 5);
+	if(slen(w) == 2)
+		return writebyte(shex(w));
+	else if(slen(w) == 4)
+		return writeshort(shex(w));
+	else
+		return 0;
 }
 
 static int
@@ -350,7 +344,7 @@ parse(char *w, FILE *f)
 	case '&': /* sublabel */
 		return !makelabel(w) ? error_asm("Invalid sublabel") : 1;
 	case '#': /* literals hex */
-		return !writehex(w) ? error_asm("Invalid hexadecimal") : 1;
+		return !sihx(w + 1) || !writehex(w) ? error_asm("Invalid hexadecimal") : 1;
 	case '_': /* raw byte relative */
 		return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
 	case ',': /* literal byte relative */
@@ -361,13 +355,13 @@ parse(char *w, FILE *f)
 		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
 	case '=': /* raw short absolute */
-		return addref(w + 1, w[0], p.ptr) && writeshort(0xffff, 0);
+		return addref(w + 1, w[0], p.ptr) && writeshort(0xffff);
 	case ';': /* literal short absolute */
-		return addref(w + 1, w[0], p.ptr + 1) && writeshort(0xffff, 1);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT2")) && writeshort(0xffff);
 	case '?': /* JCI */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff, 0);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff);
 	case '!': /* JMI */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff, 0);
+		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff);
 	case '"': /* raw string */
 		i = 0;
 		while((c = w[++i]))
@@ -391,7 +385,7 @@ parse(char *w, FILE *f)
 					return 0;
 			return 1;
 		} else
-			return addref(w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff, 0);
+			return addref(w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff);
 	}
 	return 1;
 }
