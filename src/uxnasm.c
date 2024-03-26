@@ -38,13 +38,12 @@ typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 line, length, label_len, macro_len, refs_len;
-	char *location;
 	Label labels[0x400];
 	Macro macros[0x100];
 	Reference refs[0x1000];
 } Program;
 
-char token[0x40], scope[0x40], sublabel[0x40], lambda[0x05];
+char source[0x40], token[0x40], scope[0x40], sublabel[0x40], lambda[0x05];
 
 Program p;
 
@@ -83,7 +82,7 @@ error_top(const char *name, const char *msg)
 static int
 error_asm(const char *name)
 {
-	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, p.location, p.line);
+	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line);
 	return 0;
 }
 
@@ -296,7 +295,7 @@ doinclude(char *filename)
 	int res = 0;
 	if(!(f = fopen(filename, "r")))
 		return error_top("Invalid source", filename);
-	p.location = filename;
+	scpy(filename, source, 0x40);
 	p.line = 0;
 	res = tokenize(f);
 	fclose(f);
