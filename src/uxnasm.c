@@ -258,6 +258,25 @@ writeshort(Uint16 s, int lit)
 }
 
 static int
+writehex(char *w)
+{
+	if(w[0] == '#') {
+		if(sihx(w + 1) && slen(w) == 3)
+			return writebyte(findopcode("LIT")) && writebyte(shex(w + 1));
+		else if(sihx(w + 1) && slen(w) == 5)
+			return writeshort(shex(w + 1), 1);
+		else
+			return error_asm("Invalid hex literal");
+	} else {
+		if(sihx(w) && slen(w) == 2)
+			return writebyte(shex(w));
+		/* raw short */
+		else if(sihx(w) && slen(w) == 4)
+			return writeshort(shex(w), 0);
+	}
+}
+
+static int
 tokenize(FILE *f)
 {
 	unsigned int buf;
@@ -314,18 +333,12 @@ parse(char *w, FILE *f)
 		}
 		break;
 	case '~': /* include */
-		if(!doinclude(w + 1))
-			return error_asm("Invalid include");
-		break;
+		return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': /* macro */
-		if(!makemacro(w + 1, f))
-			return error_asm("Invalid macro");
-		break;
-	case '$': /* pad-relative */
-	case '|': /* pad-absolute */
-		if(!makepad(w))
-			return error_asm("Invalid padding");
-		break;
+		return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
+	case '$': /* pad relative */
+	case '|': /* pad absolute */
+		return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '@': /* label */
 		if(!makelabel(w + 1))
 			return error_asm("Invalid label");
@@ -335,17 +348,9 @@ parse(char *w, FILE *f)
 		scope[i] = '\0';
 		break;
 	case '&': /* sublabel */
-		if(!makelabel(w))
-			return error_asm("Invalid sublabel");
-		break;
+		return !makelabel(w) ? error_asm("Invalid sublabel") : 1;
 	case '#': /* literals hex */
-		if(sihx(w + 1) && slen(w) == 3)
-			return writebyte(findopcode("LIT")) && writebyte(shex(w + 1));
-		else if(sihx(w + 1) && slen(w) == 5)
-			return writeshort(shex(w + 1), 1);
-		else
-			return error_asm("Invalid hex literal");
-		break;
+		return !writehex(w) ? error_asm("Invalid hexadecimal") : 1;
 	case '_': /* raw byte relative */
 		return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
 	case ',': /* literal byte relative */
@@ -369,22 +374,16 @@ parse(char *w, FILE *f)
 			if(!writebyte(c)) return 0;
 		break;
 	case '}': /* lambda end */
-		if(!makelabel(makelambda(p.lambda_stack[--p.lambda_ptr])))
-			return error_asm("Invalid label");
-		break;
+		return !makelabel(makelambda(p.lambda_stack[--p.lambda_ptr])) ? error_asm("Invalid label") : 1;
 	case '[':
 	case ']':
 		if(slen(w) == 1) break; /* else fallthrough */
 	default:
 		/* opcode */
-		if(isopcode(w))
-			return writebyte(findopcode(w));
+		if(isopcode(w)) return writebyte(findopcode(w));
 		/* raw byte */
-		else if(sihx(w) && slen(w) == 2)
-			return writebyte(shex(w));
-		/* raw short */
-		else if(sihx(w) && slen(w) == 4)
-			return writeshort(shex(w), 0);
+		else if(sihx(w))
+			return writehex(w);
 		/* macro */
 		else if((m = findmacro(w))) {
 			for(i = 0; i < m->len; i++)
