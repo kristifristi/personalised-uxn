@@ -36,7 +36,7 @@ typedef struct {
 typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
-	Uint16 ptr, length, label_len, macro_len, refs_len;
+	Uint16 ptr, line, length, label_len, macro_len, refs_len;
 	char scope[0x40], lambda_name[0x05], *location;
 	Label labels[0x400];
 	Macro macros[0x100];
@@ -81,7 +81,7 @@ error_top(const char *name, const char *msg)
 static int
 error_asm(const char *name)
 {
-	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, p.scope, p.location, 123);
+	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, p.scope, p.location, p.line);
 	return 0;
 }
 
@@ -89,6 +89,7 @@ static char *
 setlocation(char *name)
 {
 	p.location = name;
+	p.line = 0;
 	return name;
 }
 
@@ -284,8 +285,6 @@ parse(char *w, FILE *f)
 	char word[0x40], subw[0x40], c;
 	Label *l;
 	Macro *m;
-	if(slen(w) >= 63)
-		return error_asm("Invalid token");
 	switch(w[0]) {
 	case '(': /* comment */
 		if(slen(w) != 1) fprintf(stderr, "-- Malformed comment: %s\n", w);
@@ -464,6 +463,8 @@ assemble(FILE *f)
 		char c = (char)buf;
 		if(c < 0x21) {
 			*cptr++ = 0x00;
+			if(c == 0x0a)
+				p.line++;
 			if(token[0])
 				if(!parse(token, f))
 					return 0;
