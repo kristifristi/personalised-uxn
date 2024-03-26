@@ -220,7 +220,6 @@ makepad(char *w)
 static int
 addref(char *label, char rune, Uint16 addr)
 {
-	char parent[0x40];
 	Reference *r;
 	if(p.refs_len >= 0x1000)
 		return error_asm("References limit exceeded");
@@ -231,15 +230,8 @@ addref(char *label, char rune, Uint16 addr)
 	} else if(label[0] == '&' || label[0] == '/') {
 		if(!makesublabel(r->name, label + 1))
 			return error_asm("Invalid sublabel");
-	} else {
-		int pos = cndx(label, '/');
-		if(pos > 0) {
-			Label *l;
-			if((l = findlabel(scpy(label, parent, pos))))
-				l->refs++;
-		}
+	} else
 		scpy(label, r->name, 0x40);
-	}
 	r->rune = rune;
 	r->addr = addr;
 	return 1;
