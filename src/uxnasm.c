@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 /*
-Copyright (c) 2021-2023 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2021-2024 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -34,9 +34,10 @@ typedef struct {
 } Reference;
 
 typedef struct {
+	int ptr;
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
-	Uint16 ptr, line, length, label_len, macro_len, refs_len;
+	Uint16 line, length, label_len, macro_len, refs_len;
 	char scope[0x40], lambda_name[0x05], *location;
 	Label labels[0x400];
 	Macro macros[0x100];
@@ -258,7 +259,7 @@ writebyte(Uint8 b)
 {
 	if(p.ptr < TRIM)
 		return error_asm("Writing in zero-page");
-	else if(p.ptr == 0xffff)
+	else if(p.ptr >= 0x10000)
 		return error_asm("Writing outside memory");
 	else if(p.ptr < p.length)
 		return error_asm("Writing rewind");
