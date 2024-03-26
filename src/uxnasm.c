@@ -326,13 +326,8 @@ parse(char *w, FILE *f)
 				break;
 		}
 		break;
-	case '~': /* include */
-		return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
-	case '%': /* macro */
-		return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
-	case '$': /* pad relative */
-	case '|': /* pad absolute */
-		return !makepad(w) ? error_asm("Invalid padding") : 1;
+	case '~': return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
+	case '%': return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
 	case '@': /* label */
 		if(!makelabel(w + 1))
 			return error_asm("Invalid label");
@@ -341,44 +336,32 @@ parse(char *w, FILE *f)
 			i++;
 		scope[i] = '\0';
 		break;
-	case '&': /* sublabel */
-		return !makelabel(w) ? error_asm("Invalid sublabel") : 1;
-	case '#': /* literals hex */
-		return !sihx(w + 1) || !writehex(w) ? error_asm("Invalid hexadecimal") : 1;
-	case '_': /* raw byte relative */
-		return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
-	case ',': /* literal byte relative */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
-	case '-': /* raw byte absolute */
-		return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
-	case '.': /* literal byte zero-page */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
-	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1);
-	case '=': /* raw short absolute */
-		return addref(w + 1, w[0], p.ptr) && writeshort(0xffff);
-	case ';': /* literal short absolute */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT2")) && writeshort(0xffff);
-	case '?': /* JCI */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff);
-	case '!': /* JMI */
-		return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff);
-	case '"': /* raw string */
-		i = 0;
-		while((c = w[++i]))
-			if(!writebyte(c)) return 0;
-		break;
-	case '}': /* lambda end */
-		return !makelabel(makelambda(p.lambda_stack[--p.lambda_ptr])) ? error_asm("Invalid label") : 1;
+	case '&': return !makelabel(w) ? error_asm("Invalid sublabel") : 1;
+	case '#': return !sihx(w + 1) || !writehex(w) ? error_asm("Invalid hexadecimal") : 1;
+	case '_': return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
+	case ',': return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
+	case '-': return addref(w + 1, w[0], p.ptr) && writebyte(0xff);
+	case '.': return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT")) && writebyte(0xff);
+	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1); /* fall-through */
+	case '=': return addref(w + 1, w[0], p.ptr) && writeshort(0xffff);
+	case ';': return addref(w + 1, w[0], p.ptr + 1) && writebyte(findopcode("LIT2")) && writeshort(0xffff);
+	case '?': return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x20) && writeshort(0xffff);
+	case '!': return addref(w + 1, w[0], p.ptr + 1) && writebyte(0x40) && writeshort(0xffff);
+	case '}': return !makelabel(makelambda(p.lambda_stack[--p.lambda_ptr])) ? error_asm("Invalid label") : 1;
+	case '$':
+	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
 	case ']':
 		if(slen(w) == 1) break; /* else fallthrough */
+	case '"':                   /* raw string */
+		while((c = *(++w)))
+			if(!writebyte(c)) return 0;
+		break;
 	default:
-		/* opcode */
-		if(isopcode(w)) return writebyte(findopcode(w));
-		/* raw byte */
-		else if(sihx(w))
+		if(sihx(w))
 			return writehex(w);
-		/* macro */
+		else if(isopcode(w))
+			return writebyte(findopcode(w));
 		else if((m = findmacro(w))) {
 			for(i = 0; i < m->len; i++)
 				if(!parse(m->items[i], f))
