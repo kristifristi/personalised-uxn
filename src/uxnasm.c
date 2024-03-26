@@ -66,7 +66,6 @@ static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) re
 static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= cndx(hexad, c); } return n; } /* str to num */
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
-static int   spos(char *s, char c) { Uint8 i = 0, j; while((j = s[i++])) if(j == c) return i; return -1; } /* chr position */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
 
@@ -243,7 +242,7 @@ addref(char *scope, char *label, char rune, Uint16 addr)
 		if(!makesublabel(r->name, scope, label + 1))
 			return error_asm("Invalid sublabel");
 	} else {
-		int pos = spos(label, '/');
+		int pos = cndx(label, '/');
 		if(pos > 0) {
 			Label *l;
 			if((l = findlabel(scpy(label, parent, pos))))
