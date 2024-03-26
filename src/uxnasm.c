@@ -34,10 +34,10 @@ typedef struct {
 } Reference;
 
 typedef struct {
-	int ptr;
+	int ptr, length;
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
-	Uint16 line, length, label_len, macro_len, refs_len;
+	Uint16 line, label_len, macro_len, refs_len;
 	Label labels[0x400];
 	Macro macros[0x100];
 	Reference refs[0x1000];
