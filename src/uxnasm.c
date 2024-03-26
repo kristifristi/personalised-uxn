@@ -43,6 +43,7 @@ typedef struct {
 	Reference refs[0x1000];
 } Program;
 
+char sublabel[0x40];
 char token[0x40];
 
 Program p;
@@ -70,6 +71,7 @@ static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); whi
 /* clang-format on */
 
 static int parse(char *w, FILE *f);
+static char *makesublabel(char *src, char *scope, char *name);
 
 static int
 error_top(const char *name, const char *msg)
@@ -107,6 +109,8 @@ static Label *
 findlabel(char *name)
 {
 	int i;
+	if(name[0] == '&')
+		name = makesublabel(sublabel, p.scope, name + 1);
 	for(i = 0; i < p.label_len; i++)
 		if(scmp(p.labels[i].name, name, 0x40))
 			return &p.labels[i];
@@ -218,16 +222,11 @@ makesublabel(char *src, char *scope, char *name)
 static int
 makepad(char *w)
 {
-	char subw[0x40];
 	Label *l;
 	int rel = w[0] == '$' ? p.ptr : 0;
 	if(sihx(w + 1))
 		p.ptr = shex(w + 1) + rel;
-	else if(w[1] == '&') {
-		if(!makesublabel(subw, p.scope, w + 2) || !(l = findlabel(subw)))
-			return error_asm("Invalid sublabel");
-		p.ptr = l->addr + rel;
-	} else {
+	else {
 		if(!(l = findlabel(w + 1)))
 			return error_asm("Invalid label");
 		p.ptr = l->addr + rel;
