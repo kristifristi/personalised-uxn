@@ -60,10 +60,10 @@ static char ops[][4] = {
 static char *runes = "|$@&,_.-;=!?#\"%~";
 static char *hexad = "0123456789abcdef";
 
-static int   cndx(char *s, char t) { char cc, *r = s; while((cc = *r++)) if(t == cc) return 1; return 0; } /* chr in str */
+static int   cndx(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c == t) return i; i++; } return -1; } /* chr in str */
+static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) return 0; return 1; } /* str is hex */
+static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= cndx(hexad, c); } return n; } /* str to num */
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
-static int   sihx(char *s) { int i = 0; char c; while((c = s[i++])) if(!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f')) return 0; return i > 1; } /* str is hex */
-static int   shex(char *s) { int n = 0, i = 0; char c; while((c = s[i++])) if(c >= '0' && c <= '9') n = n * 16 + (c - '0'); else if(c >= 'a' && c <= 'f') n = n * 16 + 10 + (c - 'a'); return n; } /* str to num */
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static int   spos(char *s, char c) { Uint8 i = 0, j; while((j = s[i++])) if(j == c) return i; return -1; } /* chr position */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
@@ -182,7 +182,7 @@ makelabel(char *name)
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	if(sihx(name)) return error_asm("Label is hex number");
 	if(isopcode(name)) return error_asm("Label is opcode");
-	if(cndx(runes, name[0])) return error_asm("Label name is runic");
+	if(cndx(runes, name[0]) >= 0) return error_asm("Label name is runic");
 	if(p.label_len == 0x400) return error_asm("Labels limit exceeded");
 	l = &p.labels[p.label_len++];
 	l->addr = p.ptr;
