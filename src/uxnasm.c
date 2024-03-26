@@ -456,11 +456,23 @@ resolve(void)
 static int
 assemble(FILE *f)
 {
+	unsigned int buf;
+	char *cptr = token;
 	p.ptr = 0x100;
 	scpy("on-reset", p.scope, 0x40);
-	while(fscanf(f, "%62s", token) == 1)
-		if(slen(token) > 0x3d || !parse(token, f))
-			return error_asm("Invalid token");
+	while(fread(&buf, 1, 1, f)) {
+		char c = (char)buf;
+		if(c < 0x21) {
+			*cptr++ = 0x00;
+			if(token[0])
+				if(!parse(token, f))
+					return 0;
+			cptr = token;
+		} else if(cptr - token < 0x3f)
+			*cptr++ = c;
+		else
+			return error_asm("Token too long");
+	}
 	return resolve();
 }
 
