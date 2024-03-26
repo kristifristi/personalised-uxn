@@ -141,6 +141,21 @@ isopcode(char *s)
 }
 
 static int
+walkcomment(char *w, FILE *f)
+{
+	int depth = 1;
+	char c;
+	if(slen(w) == 1)
+		while(fread(&c, 1, 1, f)) {
+			if(c == '(')
+				depth++;
+			else if(c == ')' && --depth < 1)
+				return 1;
+		}
+	return 0;
+}
+
+static int
 makemacro(char *name, FILE *f)
 {
 	Macro *m;
@@ -155,10 +170,12 @@ makemacro(char *name, FILE *f)
 	while(fscanf(f, "%63s", word) == 1) {
 		if(word[0] == '{') continue;
 		if(word[0] == '}') break;
-		if(word[0] == '%')
-			return error_asm("Macro error");
-		if(m->len >= 0x40)
-			return error_asm("Macro size exceeded");
+		if(word[0] == '%') return error_asm("Macro error");
+		if(m->len >= 0x40) return error_asm("Macro size exceeded");
+		if(word[0] == '(') {
+			walkcomment(word, f);
+			continue;
+		}
 		scpy(word, m->items[m->len++], 0x40);
 	}
 	return 1;
@@ -298,7 +315,7 @@ tokenize(FILE *f)
 }
 
 static int
-doinclude(char *filename)
+makeinclude(char *filename)
 {
 	FILE *f;
 	int res = 0;
@@ -312,21 +329,6 @@ doinclude(char *filename)
 }
 
 static int
-walkcomment(char *w, FILE *f)
-{
-	int depth = 1;
-	char c;
-	if(slen(w) == 1)
-		while(fread(&c, 1, 1, f)) {
-			if(c == '(')
-				depth++;
-			else if(c == ')' && --depth < 1)
-				return 1;
-		}
-	return 0;
-}
-
-static int
 parse(char *w, FILE *f)
 {
 	int i;
@@ -334,7 +336,7 @@ parse(char *w, FILE *f)
 	Macro *m;
 	switch(w[0]) {
 	case '(': return !walkcomment(w, f) ? error_asm("Invalid comment") : 1;
-	case '~': return !doinclude(w + 1) ? error_asm("Invalid include") : 1;
+	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
 	case '@': return !makelabel(w + 1, 1) ? error_asm("Invalid label") : 1;
 	case '&': return !makelabel(w, 0) ? error_asm("Invalid sublabel") : 1;
@@ -466,7 +468,7 @@ main(int argc, char *argv[])
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 26 Mar 2024.\n");
-	if(!doinclude(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!makeinclude(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
 	if(p.length <= TRIM) return !error_top("Assembly", "Output rom is empty.");
 	review(argv[2]);
