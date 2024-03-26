@@ -218,11 +218,10 @@ makepad(char *w)
 	int rel = w[0] == '$' ? p.ptr : 0;
 	if(sihx(w + 1))
 		p.ptr = shex(w + 1) + rel;
-	else {
-		if(!(l = findlabel(w + 1)))
-			return error_asm("Invalid label");
+	else if((l = findlabel(w + 1)))
 		p.ptr = l->addr + rel;
-	}
+	else
+		return error_asm("Invalid padding");
 	return 1;
 }
 
@@ -272,6 +271,29 @@ static int
 writeshort(Uint16 s, int lit)
 {
 	return (lit ? writebyte(findopcode("LIT2")) : 1) && writebyte(s >> 8) && writebyte(s & 0xff);
+}
+
+static int
+tokenize(FILE *f)
+{
+	unsigned int buf;
+	char *cptr = token;
+	while(fread(&buf, 1, 1, f)) {
+		char c = (char)buf;
+		if(c < 0x21) {
+			*cptr++ = 0x00;
+			if(c == 0x0a)
+				p.line++;
+			if(token[0])
+				if(!parse(token, f))
+					return 0;
+			cptr = token;
+		} else if(cptr - token < 0x3f)
+			*cptr++ = c;
+		else
+			return error_asm("Token too long");
+	}
+	return 1;
 }
 
 static int
@@ -443,26 +465,9 @@ resolve(void)
 static int
 assemble(FILE *f)
 {
-	unsigned int buf;
-	char *cptr = token;
 	p.ptr = 0x100;
 	scpy("on-reset", p.scope, 0x40);
-	while(fread(&buf, 1, 1, f)) {
-		char c = (char)buf;
-		if(c < 0x21) {
-			*cptr++ = 0x00;
-			if(c == 0x0a)
-				p.line++;
-			if(token[0])
-				if(!parse(token, f))
-					return 0;
-			cptr = token;
-		} else if(cptr - token < 0x3f)
-			*cptr++ = c;
-		else
-			return error_asm("Token too long");
-	}
-	return resolve();
+	return tokenize(f) && resolve();
 }
 
 static void
