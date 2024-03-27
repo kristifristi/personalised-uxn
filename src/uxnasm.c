@@ -19,7 +19,7 @@ typedef signed char Sint8;
 typedef unsigned short Uint16;
 
 typedef struct {
-	char *name, items[0x40][0x40];
+	char *name, content[0x80];
 	Uint8 len;
 } Macro;
 
@@ -156,7 +156,7 @@ makemacro(char *name, FILE *f)
 			if(!walkcomment(word, f)) return error_asm("Comment error");
 			continue;
 		}
-		scpy(word, m->items[m->len++], 0x40);
+		scat(scat(m->content, word), " ");
 	}
 	return 1;
 }
@@ -256,18 +256,31 @@ writehex(char *w)
 }
 
 static int
-tokenize(FILE *f)
+walkmacro(Macro *m)
 {
-	char c;
-	char *cptr = token;
+	char c, *contentptr = m->content, *cptr = token;
+	while((c = *contentptr++)) {
+		if(c < 0x21) {
+			*cptr++ = 0x00;
+			if(token[0] && !parse(token, NULL)) return 0;
+			cptr = token;
+		} else
+			*cptr++ = c;
+	}
+	return 1;
+}
+
+static int
+walkfile(FILE *f)
+{
+	char c, *cptr = token;
 	while(fread(&c, 1, 1, f)) {
 		if(c < 0x21) {
 			*cptr++ = 0x00;
 			if(c == 0x0a)
 				p.line++;
-			if(token[0])
-				if(!parse(token, f))
-					return 0;
+			if(token[0] && !parse(token, f))
+				return 0;
 			cptr = token;
 		} else if(cptr - token < 0x3f)
 			*cptr++ = c;
@@ -286,7 +299,7 @@ makeinclude(char *filename)
 		return error_top("Invalid source", filename);
 	scpy(filename, source, 0x40);
 	p.line = 0;
-	res = tokenize(f);
+	res = walkfile(f);
 	fclose(f);
 	return res;
 }
@@ -294,7 +307,6 @@ makeinclude(char *filename)
 static int
 parse(char *w, FILE *f)
 {
-	int i;
 	char c;
 	Macro *m;
 	switch(w[0]) {
@@ -328,12 +340,9 @@ parse(char *w, FILE *f)
 			return writehex(w);
 		else if(isopcode(w))
 			return writebyte(findopcode(w));
-		else if((m = findmacro(w))) {
-			for(i = 0; i < m->len; i++)
-				if(!parse(m->items[i], f))
-					return 0;
-			return 1;
-		} else
+		else if((m = findmacro(w)))
+			return walkmacro(m);
+		else
 			return addref(w, ' ', p.ptr + 1) && writebyte(0x60) && writeshort(0xffff);
 	}
 	return 1;
