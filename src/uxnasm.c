@@ -23,12 +23,12 @@ typedef struct {
 } Item;
 
 typedef struct {
-	char *path;
 	int line;
+	char *path;
 } Context;
 
 static int ptr, length;
-static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
+static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
 static char dict[0x10000], *dictnext = dict;
 static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 label_len, refs_len, macro_len;
@@ -60,7 +60,7 @@ static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s
 #define findlabel(x) finditem(x, labels, label_len)
 #define findmacro(x) finditem(x, macros, macro_len)
 #define error_top(name, msg) !fprintf(stderr, "%s: %s\n", name, msg)
-#define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, ctx->line)
+#define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, ctx->path, ctx->line)
 
 /* clang-format on */
 
@@ -215,10 +215,14 @@ makepad(char *w)
 {
 	Item *l;
 	int rel = w[0] == '$' ? ptr : 0;
-	if(sihx(w + 1))
-		return ptr = shex(w + 1) + rel;
-	if((l = findlabel(w + 1)))
-		return ptr = l->addr + rel;
+	if(sihx(w + 1)) {
+		ptr = shex(w + 1) + rel;
+		return 1;
+	}
+	if((l = findlabel(w + 1))) {
+		ptr = l->addr + rel;
+		return 1;
+	}
 	return 0;
 }
 
@@ -275,9 +279,9 @@ makeinclude(char *filename)
 	int res = 0;
 	Context ctx;
 	ctx.line = 0;
+	ctx.path = push(filename, 0);
 	if(!(f = fopen(filename, "r")))
 		return error_top("Invalid source", filename);
-	scpy(filename, source, 0x40);
 	res = walkfile(f, &ctx);
 	fclose(f);
 	return res;
@@ -418,7 +422,7 @@ main(int argc, char *argv[])
 	ptr = PAGE;
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
-	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 26 Mar 2024.\n");
+	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 27 Mar 2024.\n");
 	if(!makeinclude(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
 	if(length <= PAGE) return !error_top("Assembly", "Output rom is empty.");
