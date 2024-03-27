@@ -49,15 +49,14 @@ Program p;
 
 /* clang-format off */
 
+static char *runes = "|$@&,_.-;=!?#\"%~";
+static char *hexad = "0123456789abcdef";
 static char ops[][4] = {
 	"LIT", "INC", "POP", "NIP", "SWP", "ROT", "DUP", "OVR",
 	"EQU", "NEQ", "GTH", "LTH", "JMP", "JCN", "JSR", "STH",
 	"LDZ", "STZ", "LDR", "STR", "LDA", "STA", "DEI", "DEO",
 	"ADD", "SUB", "MUL", "DIV", "AND", "ORA", "EOR", "SFT"
 };
-
-static char *runes = "|$@&,_.-;=!?#\"%~";
-static char *hexad = "0123456789abcdef";
 
 static int   cndx(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c == t) return i; i++; } return -1; } /* chr in str */
 static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) return 0; return 1; } /* str is hex */
@@ -67,24 +66,15 @@ static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str leng
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
 
+#define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
+#define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
+#define error_top(name, msg) !!fprintf(stderr, "%s: %s\n", name, msg)
+#define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line)
+
 /* clang-format on */
 
 static int parse(char *w, FILE *f);
 static char *makesublabel(char *src, char *name);
-
-static int
-error_top(const char *name, const char *msg)
-{
-	fprintf(stderr, "%s: %s\n", name, msg);
-	return 0;
-}
-
-static int
-error_asm(const char *name)
-{
-	fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line);
-	return 0;
-}
 
 static Macro *
 findmacro(char *name)
@@ -132,12 +122,6 @@ findopcode(char *s)
 		return i;
 	}
 	return 0;
-}
-
-static int
-isopcode(char *s)
-{
-	return findopcode(s) || scmp(s, "BRK", 4);
 }
 
 static int
@@ -271,12 +255,6 @@ writebyte(Uint8 b)
 	p.data[p.ptr++] = b;
 	p.length = p.ptr;
 	return 1;
-}
-
-static int
-writeshort(Uint16 s)
-{
-	return writebyte(s >> 8) && writebyte(s);
 }
 
 static int
