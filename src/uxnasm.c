@@ -337,17 +337,17 @@ parse(char *w, FILE *f, Context *ctx)
 static int
 resolve(void)
 {
-	Item *l;
+
 	int i;
 	Uint16 a;
 	for(i = 0; i < refs_len; i++) {
 		Item *r = &refs[i];
 		Uint8 *rom = data + r->addr;
+		Item *l = findlabel(r->name);
 		switch(r->rune) {
 		case '_':
 		case ',':
-			if(!(l = findlabel(r->name)))
-				return error_top("Unknown relative reference", r->name);
+			if(!l) return error_top("Unknown relative reference", r->name);
 			*rom = (Sint8)(l->addr - r->addr - 2);
 			if((Sint8)data[r->addr] != (l->addr - r->addr - 2))
 				return error_top("Relative reference is too far", r->name);
@@ -355,24 +355,21 @@ resolve(void)
 			break;
 		case '-':
 		case '.':
-			if(!(l = findlabel(r->name)))
-				return error_top("Unknown zero-page reference", r->name);
+			if(!l) return error_top("Unknown zero-page reference", r->name);
 			*rom = l->addr;
 			l->refs++;
 			break;
 		case ':':
 		case '=':
 		case ';':
-			if(!(l = findlabel(r->name)))
-				return error_top("Unknown absolute reference", r->name);
+			if(!l) return error_top("Unknown absolute reference", r->name);
 			*rom++ = l->addr >> 8, *rom = l->addr;
 			l->refs++;
 			break;
 		case '?':
 		case '!':
 		default:
-			if(!(l = findlabel(r->name)))
-				return error_top("Unknown subroutine reference", r->name);
+			if(!l) return error_top("Unknown subroutine reference", r->name);
 			a = l->addr - r->addr - 2;
 			*rom++ = a >> 8, *rom = a;
 			l->refs++;
