@@ -321,17 +321,16 @@ parse(char *w, FILE *f, Context *ctx)
 	case '$':
 	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
-	case ']': break;
-	default:
-		if(sihx(w))
-			return writehex(w, ctx);
-		else if(isopcode(w))
-			return writebyte(findopcode(w), ctx);
-		else if((m = findmacro(w)))
-			return walkmacro(m, ctx);
-		else
-			return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
+	case ']': return 1;
 	}
+	if(sihx(w))
+		return writehex(w, ctx);
+	else if(isopcode(w))
+		return writebyte(findopcode(w), ctx);
+	else if((m = findmacro(w)))
+		return walkmacro(m, ctx);
+	else
+		return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 	return 1;
 }
 
