@@ -276,7 +276,7 @@ writebyte(Uint8 b)
 static int
 writeshort(Uint16 s)
 {
-	return writebyte(s >> 8) && writebyte(s & 0xff);
+	return writebyte(s >> 8) && writebyte(s);
 }
 
 static int
@@ -399,7 +399,7 @@ resolve(void)
 		case '.':
 			if(!(l = findlabel(r->name)))
 				return error_top("Unknown zero-page reference", r->name);
-			*rom = l->addr & 0xff;
+			*rom = l->addr;
 			l->refs++;
 			break;
 		case ':':
@@ -407,7 +407,7 @@ resolve(void)
 		case ';':
 			if(!(l = findlabel(r->name)))
 				return error_top("Unknown absolute reference", r->name);
-			*rom++ = l->addr >> 0x8, *rom = l->addr & 0xff;
+			*rom++ = l->addr >> 8, *rom = l->addr;
 			l->refs++;
 			break;
 		case '?':
@@ -416,7 +416,7 @@ resolve(void)
 			if(!(l = findlabel(r->name)))
 				return error_top("Unknown subroutine reference", r->name);
 			a = l->addr - r->addr - 2;
-			*rom++ = a >> 0x8, *rom = a & 0xff;
+			*rom++ = a >> 8, *rom = a;
 			l->refs++;
 			break;
 		}
@@ -451,7 +451,7 @@ writesym(char *filename)
 	fp = fopen(scat(scpy(filename, symdst, slen(filename) + 1), ".sym"), "w");
 	if(fp != NULL) {
 		for(i = 0; i < p.label_len; i++) {
-			Uint8 hb = p.labels[i].addr >> 8, lb = p.labels[i].addr & 0xff;
+			Uint8 hb = p.labels[i].addr >> 8, lb = p.labels[i].addr;
 			fwrite(&hb, 1, 1, fp);
 			fwrite(&lb, 1, 1, fp);
 			fwrite(p.labels[i].name, slen(p.labels[i].name) + 1, 1, fp);
