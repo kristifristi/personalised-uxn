@@ -54,8 +54,8 @@ static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s
 #define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
 #define findlabel(x) finditem(x, labels, label_len)
 #define findmacro(x) finditem(x, macros, macro_len)
-#define error_top(name, msg) !!fprintf(stderr, "%s: %s\n", name, msg)
-#define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, ln)
+#define error_top(name, msg) !fprintf(stderr, "%s: %s\n", name, msg)
+#define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, ln)
 
 /* clang-format on */
 
