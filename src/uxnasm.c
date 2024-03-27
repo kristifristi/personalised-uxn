@@ -288,9 +288,17 @@ makeinclude(char *filename)
 }
 
 static int
-parse(char *w, FILE *f, Context *ctx)
+writestring(char *w, Context *ctx)
 {
 	char c;
+	while((c = *(w++)))
+		if(!writebyte(c, ctx)) return 0;
+	return 1;
+}
+
+static int
+parse(char *w, FILE *f, Context *ctx)
+{
 	Item *m;
 	switch(w[0]) {
 	case '(': return !walkcomment(f, ctx) ? error_asm("Invalid comment") : 1;
@@ -298,6 +306,7 @@ parse(char *w, FILE *f, Context *ctx)
 	case '%': return !makemacro(w + 1, f, ctx) ? error_asm("Invalid macro") : 1;
 	case '@': return !makelabel(w + 1, 1, ctx) ? error_asm("Invalid label") : 1;
 	case '&': return !makelabel(w, 0, ctx) ? error_asm("Invalid sublabel") : 1;
+	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ctx) ? error_asm("Invalid label") : 1;
 	case '#': return !sihx(w + 1) || !writehex(w, ctx) ? error_asm("Invalid hexadecimal") : 1;
 	case '_': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
 	case ',': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
@@ -308,16 +317,11 @@ parse(char *w, FILE *f, Context *ctx)
 	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
 	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
 	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
-	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ctx) ? error_asm("Invalid label") : 1;
+	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
 	case '$':
 	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
-	case ']':
-		if(slen(w) == 1) break; /* else fallthrough */
-	case '"':                   /* raw string */
-		while((c = *(++w)))
-			if(!writebyte(c, ctx)) return 0;
-		break;
+	case ']': break;
 	default:
 		if(sihx(w))
 			return writehex(w, ctx);
