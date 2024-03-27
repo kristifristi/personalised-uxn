@@ -105,7 +105,7 @@ walkcomment(FILE *f, int *ln)
 	char c;
 	int depth = 1;
 	while(f && fread(&c, 1, 1, f)) {
-		if(c == 0xa) *ln++;
+		if(c == 0xa) *ln += 1;
 		if(c == '(') depth++;
 		if(c == ')' && --depth < 1) return 1;
 	}
@@ -132,7 +132,7 @@ walkfile(FILE *f, int *ln)
 {
 	char c, *cptr = token;
 	while(f && fread(&c, 1, 1, f)) {
-		if(c == 0xa) *ln++;
+		if(c == 0xa) *ln += 1;
 		if(c < 0x21) {
 			*cptr++ = 0x00;
 			if(token[0] && !parse(token, f, ln))
@@ -160,9 +160,9 @@ makemacro(char *name, FILE *f, int *ln)
 	m->name = push(name, 0);
 	m->content = dictnext;
 	while(f && fread(&c, 1, 1, f) && c != '{')
-		if(c == 0xa) *ln++;
+		if(c == 0xa) *ln += 1;
 	while(f && fread(&c, 1, 1, f) && c != '}') {
-		if(c == 0xa) *ln++;
+		if(c == 0xa) *ln += 1;
 		if(c == '%') return 0;
 		if(c == '(') walkcomment(f, ln);
 		*dictnext++ = c;
