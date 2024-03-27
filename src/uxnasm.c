@@ -100,16 +100,14 @@ findopcode(char *s)
 }
 
 static int
-walkcomment(char *w, FILE *f)
+walkcomment(FILE *f)
 {
-	int depth = 1;
 	char c;
+	int depth = 1;
 	while(fread(&c, 1, 1, f)) {
 		if(c == 0xa) line++;
-		if(c == '(')
-			depth++;
-		else if(c == ')' && --depth < 1)
-			return 1;
+		if(c == '(') depth++;
+		if(c == ')' && --depth < 1) return 1;
 	}
 	return 0;
 }
@@ -132,7 +130,7 @@ makemacro(char *name, FILE *f)
 		if(word[0] == '}') break;
 		if(word[0] == '%') return error_asm("Macro error");
 		if(word[0] == '(') {
-			if(!walkcomment(word, f)) return error_asm("Comment error");
+			if(!walkcomment(f)) return error_asm("Comment error");
 			continue;
 		}
 		push(word, ' ');
@@ -287,7 +285,7 @@ parse(char *w, FILE *f)
 	char c;
 	Item *m;
 	switch(w[0]) {
-	case '(': return !walkcomment(w, f) ? error_asm("Invalid comment") : 1;
+	case '(': return !walkcomment(f) ? error_asm("Invalid comment") : 1;
 	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f) ? error_asm("Invalid macro") : 1;
 	case '@': return !makelabel(w + 1, 1) ? error_asm("Invalid label") : 1;
