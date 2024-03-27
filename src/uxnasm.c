@@ -22,6 +22,11 @@ typedef struct {
 	Uint16 addr, refs;
 } Item;
 
+typedef struct {
+	char *path;
+	int line;
+} Context;
+
 static int ptr, length;
 static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
 static char dict[0x10000], *dictnext = dict;
@@ -50,16 +55,16 @@ static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src)
 static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
-#define writeshort(x) (writebyte(x >> 8, ln) && writebyte(x & 0xff, ln))
+#define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
 #define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
 #define findlabel(x) finditem(x, labels, label_len)
 #define findmacro(x) finditem(x, macros, macro_len)
 #define error_top(name, msg) !fprintf(stderr, "%s: %s\n", name, msg)
-#define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, *ln)
+#define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, ctx->line)
 
 /* clang-format on */
 
-static int parse(char *w, FILE *f, int *ln);
+static int parse(char *w, FILE *f, Context *ctx);
 
 static Item *
 finditem(char *name, Item *list, int len)
@@ -100,12 +105,12 @@ findopcode(char *s)
 }
 
 static int
-walkcomment(FILE *f, int *ln)
+walkcomment(FILE *f, Context *ctx)
 {
 	char c;
 	int depth = 1;
 	while(f && fread(&c, 1, 1, f)) {
-		if(c == 0xa) *ln += 1;
+		if(c == 0xa) ctx->line += 1;
 		if(c == '(') depth++;
 		if(c == ')' && --depth < 1) return 1;
 	}
@@ -113,13 +118,13 @@ walkcomment(FILE *f, int *ln)
 }
 
 static int
-walkmacro(Item *m, int *ln)
+walkmacro(Item *m, Context *ctx)
 {
 	char c, *contentptr = m->content, *cptr = token;
 	while((c = *contentptr++)) {
 		if(c < 0x21) {
 			*cptr++ = 0x00;
-			if(token[0] && !parse(token, NULL, ln)) return 0;
+			if(token[0] && !parse(token, NULL, ctx)) return 0;
 			cptr = token;
 		} else
 			*cptr++ = c;
@@ -128,14 +133,14 @@ walkmacro(Item *m, int *ln)
 }
 
 static int
-walkfile(FILE *f, int *ln)
+walkfile(FILE *f, Context *ctx)
 {
 	char c, *cptr = token;
 	while(f && fread(&c, 1, 1, f)) {
-		if(c == 0xa) *ln += 1;
+		if(c == 0xa) ctx->line += 1;
 		if(c < 0x21) {
 			*cptr++ = 0x00;
-			if(token[0] && !parse(token, f, ln))
+			if(token[0] && !parse(token, f, ctx))
 				return 0;
 			cptr = token;
 		} else if(cptr - token < 0x3f)
@@ -147,7 +152,7 @@ walkfile(FILE *f, int *ln)
 }
 
 static int
-makemacro(char *name, FILE *f, int *ln)
+makemacro(char *name, FILE *f, Context *ctx)
 {
 	char c;
 	Item *m;
@@ -160,11 +165,11 @@ makemacro(char *name, FILE *f, int *ln)
 	m->name = push(name, 0);
 	m->content = dictnext;
 	while(f && fread(&c, 1, 1, f) && c != '{')
-		if(c == 0xa) *ln += 1;
+		if(c == 0xa) ctx->line += 1;
 	while(f && fread(&c, 1, 1, f) && c != '}') {
-		if(c == 0xa) *ln += 1;
+		if(c == 0xa) ctx->line += 1;
 		if(c == '%') return 0;
-		if(c == '(') walkcomment(f, ln);
+		if(c == '(') walkcomment(f, ctx);
 		*dictnext++ = c;
 	}
 	*dictnext++ = 0;
@@ -172,7 +177,7 @@ makemacro(char *name, FILE *f, int *ln)
 }
 
 static int
-makelabel(char *name, int setscope, int *ln)
+makelabel(char *name, int setscope, Context *ctx)
 {
 	Item *l;
 	if(name[0] == '&')
@@ -237,7 +242,7 @@ addref(char *label, char rune, Uint16 addr)
 }
 
 static int
-writebyte(Uint8 b, int *ln)
+writebyte(Uint8 b, Context *ctx)
 {
 	if(ptr < PAGE)
 		return error_asm("Writing in zero-page");
@@ -251,12 +256,12 @@ writebyte(Uint8 b, int *ln)
 }
 
 static int
-writehex(char *w, int *ln)
+writehex(char *w, Context *ctx)
 {
 	if(*w == '#')
-		writebyte(findopcode("LIT") | (slen(++w) > 2) << 5, ln);
+		writebyte(findopcode("LIT") | (slen(++w) > 2) << 5, ctx);
 	if(slen(w) == 2)
-		return writebyte(shex(w), ln);
+		return writebyte(shex(w), ctx);
 	else if(slen(w) == 4)
 		return writeshort(shex(w));
 	else
@@ -267,37 +272,39 @@ static int
 makeinclude(char *filename)
 {
 	FILE *f;
-	int res = 0, ln = 0;
+	int res = 0;
+	Context ctx;
+	ctx.line = 0;
 	if(!(f = fopen(filename, "r")))
 		return error_top("Invalid source", filename);
 	scpy(filename, source, 0x40);
-	res = walkfile(f, &ln);
+	res = walkfile(f, &ctx);
 	fclose(f);
 	return res;
 }
 
 static int
-parse(char *w, FILE *f, int *ln)
+parse(char *w, FILE *f, Context *ctx)
 {
 	char c;
 	Item *m;
 	switch(w[0]) {
-	case '(': return !walkcomment(f, ln) ? error_asm("Invalid comment") : 1;
+	case '(': return !walkcomment(f, ctx) ? error_asm("Invalid comment") : 1;
 	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
-	case '%': return !makemacro(w + 1, f, ln) ? error_asm("Invalid macro") : 1;
-	case '@': return !makelabel(w + 1, 1, ln) ? error_asm("Invalid label") : 1;
-	case '&': return !makelabel(w, 0, ln) ? error_asm("Invalid sublabel") : 1;
-	case '#': return !sihx(w + 1) || !writehex(w, ln) ? error_asm("Invalid hexadecimal") : 1;
-	case '_': return addref(w + 1, w[0], ptr) && writebyte(0xff, ln);
-	case ',': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ln) && writebyte(0xff, ln);
-	case '-': return addref(w + 1, w[0], ptr) && writebyte(0xff, ln);
-	case '.': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ln) && writebyte(0xff, ln);
+	case '%': return !makemacro(w + 1, f, ctx) ? error_asm("Invalid macro") : 1;
+	case '@': return !makelabel(w + 1, 1, ctx) ? error_asm("Invalid label") : 1;
+	case '&': return !makelabel(w, 0, ctx) ? error_asm("Invalid sublabel") : 1;
+	case '#': return !sihx(w + 1) || !writehex(w, ctx) ? error_asm("Invalid hexadecimal") : 1;
+	case '_': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
+	case ',': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
+	case '-': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
+	case '.': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1); /* fall-through */
 	case '=': return addref(w + 1, w[0], ptr) && writeshort(0xffff);
-	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ln) && writeshort(0xffff);
-	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ln) && writeshort(0xffff);
-	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ln) && writeshort(0xffff);
-	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ln) ? error_asm("Invalid label") : 1;
+	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
+	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
+	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
+	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ctx) ? error_asm("Invalid label") : 1;
 	case '$':
 	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
@@ -305,17 +312,17 @@ parse(char *w, FILE *f, int *ln)
 		if(slen(w) == 1) break; /* else fallthrough */
 	case '"':                   /* raw string */
 		while((c = *(++w)))
-			if(!writebyte(c, ln)) return 0;
+			if(!writebyte(c, ctx)) return 0;
 		break;
 	default:
 		if(sihx(w))
-			return writehex(w, ln);
+			return writehex(w, ctx);
 		else if(isopcode(w))
-			return writebyte(findopcode(w), ln);
+			return writebyte(findopcode(w), ctx);
 		else if((m = findmacro(w)))
-			return walkmacro(m, ln);
+			return walkmacro(m, ctx);
 		else
-			return addref(w, ' ', ptr + 1) && writebyte(0x60, ln) && writeshort(0xffff);
+			return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 	}
 	return 1;
 }
