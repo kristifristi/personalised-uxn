@@ -344,27 +344,25 @@ resolveref(Item *r)
 		*rom = (Sint8)(l->addr - r->addr - 2);
 		if((Sint8)data[r->addr] != (l->addr - r->addr - 2))
 			return error_top("Relative reference is too far", r->name);
-		l->refs++;
 		break;
 	case '-':
 	case '.':
 		*rom = l->addr;
-		l->refs++;
 		break;
 	case ':':
 	case '=':
 	case ';':
 		*rom++ = l->addr >> 8, *rom = l->addr;
-		l->refs++;
 		break;
 	case '?':
 	case '!':
 	default:
 		a = l->addr - r->addr - 2;
 		*rom++ = a >> 8, *rom = a;
-		l->refs++;
 		break;
 	}
+	l->refs++;
+	return 1;
 }
 
 static int
