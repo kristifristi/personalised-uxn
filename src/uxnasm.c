@@ -116,7 +116,7 @@ static int
 makemacro(char *name, FILE *f)
 {
 	Item *m;
-	char word[0x40];
+	char c, word[0x40];
 	if(!slen(name)) return error_asm("Macro is empty");
 	if(findmacro(name)) return error_asm("Macro is duplicate");
 	if(sihx(name)) return error_asm("Macro is hex number");
@@ -125,15 +125,13 @@ makemacro(char *name, FILE *f)
 	m = &macros[macro_len++];
 	m->name = push(name, 0);
 	m->content = dictnext;
-	while(fscanf(f, "%63s", word) == 1) {
-		if(word[0] == '{') continue;
-		if(word[0] == '}') break;
-		if(word[0] == '%') return error_asm("Macro error");
-		if(word[0] == '(') {
-			if(!walkcomment(f)) return error_asm("Comment error");
-			continue;
-		}
-		push(word, ' ');
+	while(fread(&c, 1, 1, f) && c != '{')
+		if(c == 0xa) line++;
+	while(fread(&c, 1, 1, f) && c != '}') {
+		if(c == 0xa) line++;
+		if(c == '%') return 0;
+		if(c == '(') walkcomment(f);
+		*dictnext++ = c;
 	}
 	*dictnext++ = 0;
 	return 1;
