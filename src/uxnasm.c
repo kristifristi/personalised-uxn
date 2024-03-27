@@ -104,7 +104,7 @@ walkcomment(FILE *f)
 {
 	char c;
 	int depth = 1;
-	while(fread(&c, 1, 1, f)) {
+	while(f && fread(&c, 1, 1, f)) {
 		if(c == 0xa) line++;
 		if(c == '(') depth++;
 		if(c == ')' && --depth < 1) return 1;
@@ -131,7 +131,7 @@ static int
 walkfile(FILE *f)
 {
 	char c, *cptr = token;
-	while(fread(&c, 1, 1, f)) {
+	while(f && fread(&c, 1, 1, f)) {
 		if(c == 0xa) line++;
 		if(c < 0x21) {
 			*cptr++ = 0x00;
@@ -149,8 +149,8 @@ walkfile(FILE *f)
 static int
 makemacro(char *name, FILE *f)
 {
-	Item *m;
 	char c;
+	Item *m;
 	if(!slen(name)) return error_asm("Macro is empty");
 	if(findmacro(name)) return error_asm("Macro is duplicate");
 	if(sihx(name)) return error_asm("Macro is hex number");
@@ -159,9 +159,9 @@ makemacro(char *name, FILE *f)
 	m = &macros[macro_len++];
 	m->name = push(name, 0);
 	m->content = dictnext;
-	while(fread(&c, 1, 1, f) && c != '{')
+	while(f && fread(&c, 1, 1, f) && c != '{')
 		if(c == 0xa) line++;
-	while(fread(&c, 1, 1, f) && c != '}') {
+	while(f && fread(&c, 1, 1, f) && c != '}') {
 		if(c == 0xa) line++;
 		if(c == '%') return 0;
 		if(c == '(') walkcomment(f);

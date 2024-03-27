@@ -1,6 +1,6 @@
 ( init )
 
-%emit ( byte -- ) { #18 DEO }
+%emit ( byte -- ) { ( macro comment ) #18 DEO }
 
 |0100 @program
 
