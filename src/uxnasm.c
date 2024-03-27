@@ -18,7 +18,7 @@ typedef signed char Sint8;
 typedef unsigned short Uint16;
 
 typedef struct {
-	char *name, rune, *content;
+	char *name, *content;
 	Uint16 addr, refs;
 } Item;
 
@@ -226,7 +226,7 @@ makepad(char *w)
 }
 
 static int
-addref(char *label, char rune, Uint16 addr)
+addref(char *label, Uint16 addr)
 {
 	Item *r;
 	if(refs_len >= 0x1000)
@@ -235,11 +235,12 @@ addref(char *label, char rune, Uint16 addr)
 	if(label[0] == '{') {
 		lambda_stack[lambda_ptr++] = lambda_len;
 		r->name = push(makelambda(lambda_len++), 0);
-	} else if(label[0] == '&' || label[0] == '/') {
+	} else if(label[1] == '&')
+		r->name = makesublabel(label + 2);
+	else if(label[0] == '/')
 		r->name = makesublabel(label + 1);
-	} else
+	else
 		r->name = push(label, 0);
-	r->rune = rune;
 	r->addr = addr;
 	return 1;
 }
@@ -307,15 +308,15 @@ parse(char *w, FILE *f, Context *ctx)
 	case '&': return !makelabel(w, 0, ctx) ? error_asm("Invalid sublabel") : 1;
 	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ctx) ? error_asm("Invalid label") : 1;
 	case '#': return !sihx(w + 1) || !writehex(w, ctx) ? error_asm("Invalid hexadecimal") : 1;
-	case '_': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
-	case ',': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
-	case '-': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
-	case '.': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
+	case '_': return addref(w, ptr) && writebyte(0xff, ctx);
+	case ',': return addref(w, ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
+	case '-': return addref(w, ptr) && writebyte(0xff, ctx);
+	case '.': return addref(w, ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1); /* fall-through */
-	case '=': return addref(w + 1, w[0], ptr) && writeshort(0xffff);
-	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
-	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
-	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
+	case '=': return addref(w, ptr) && writeshort(0xffff);
+	case ';': return addref(w, ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
+	case '?': return addref(w, ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
+	case '!': return addref(w, ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
 	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
 	case '$':
 	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
@@ -328,7 +329,7 @@ parse(char *w, FILE *f, Context *ctx)
 		return writebyte(findopcode(w), ctx);
 	else if((m = findmacro(w)))
 		return walkmacro(m, ctx);
-	return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
+	return addref(w, ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 }
 
 static int
@@ -339,11 +340,11 @@ resolve(void)
 	for(i = 0; i < refs_len; i++) {
 		Item *r = &refs[i];
 		Uint8 *rom = data + r->addr;
-		Item *l = findlabel(r->name);
-		switch(r->rune) {
+		Item *l;
+		switch(r->name[0]) {
 		case '_':
 		case ',':
-			if(!l) return error_top("Unknown relative reference", r->name);
+			if(!(l = findlabel(r->name + 1))) return error_top("Unknown relative reference", r->name);
 			*rom = (Sint8)(l->addr - r->addr - 2);
 			if((Sint8)data[r->addr] != (l->addr - r->addr - 2))
 				return error_top("Relative reference is too far", r->name);
@@ -351,21 +352,26 @@ resolve(void)
 			break;
 		case '-':
 		case '.':
-			if(!l) return error_top("Unknown zero-page reference", r->name);
+			if(!(l = findlabel(r->name + 1))) return error_top("Unknown zero-page reference", r->name);
 			*rom = l->addr;
 			l->refs++;
 			break;
 		case ':':
 		case '=':
 		case ';':
-			if(!l) return error_top("Unknown absolute reference", r->name);
+			if(!(l = findlabel(r->name + 1))) return error_top("Unknown absolute reference", r->name);
 			*rom++ = l->addr >> 8, *rom = l->addr;
 			l->refs++;
 			break;
 		case '?':
 		case '!':
+			if(!(l = findlabel(r->name + 1))) return error_top("Unknown immediate reference", r->name);
+			a = l->addr - r->addr - 2;
+			*rom++ = a >> 8, *rom = a;
+			l->refs++;
+			break;
 		default:
-			if(!l) return error_top("Unknown subroutine reference", r->name);
+			if(!(l = findlabel(r->name))) return error_top("Unknown subroutine reference", r->name);
 			a = l->addr - r->addr - 2;
 			*rom++ = a >> 8, *rom = a;
 			l->refs++;
