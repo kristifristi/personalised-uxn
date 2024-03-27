@@ -24,7 +24,7 @@ typedef struct {
 } Macro;
 
 typedef struct {
-	char name[0x40];
+	char *name;
 	Uint16 addr, refs;
 } Label;
 
@@ -72,6 +72,18 @@ static char *scat(char *dst, char *src) { char *ptr = dst + slen(dst); while(*sr
 #define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line)
 
 /* clang-format on */
+
+char storage[0x10000], *storenext = storage;
+
+static char *
+store(char *s)
+{
+	char *ptr = storenext;
+	while((*storenext++ = *s++))
+		;
+	*storenext++ = 0;
+	return ptr;
+}
 
 static int parse(char *w, FILE *f);
 static char *makesublabel(char *src, char *name);
@@ -180,7 +192,7 @@ makelabel(char *name, int setscope)
 	l = &p.labels[p.label_len++];
 	l->addr = p.ptr;
 	l->refs = 0;
-	scpy(name, l->name, 0x40);
+	l->name = store(name);
 	if(setscope) {
 		int i = 0;
 		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i])) i++;
