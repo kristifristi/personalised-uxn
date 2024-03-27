@@ -12,7 +12,6 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 #define TRIM 0x0100
-#define LENGTH 0x10000
 
 typedef unsigned char Uint8;
 typedef signed char Sint8;
@@ -24,13 +23,11 @@ typedef struct {
 } Item;
 
 static int ptr, length, line;
-static Uint8 data[LENGTH];
+static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
+static char dict[0x10000], *dictnext = dict;
+static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 label_len, refs_len, macro_len;
 static Item labels[0x400], refs[0x1000], macros[0x100];
-static Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
-static char lambda[0x05];
-static char source[0x40], token[0x40], scope[0x40], sublabel[0x80];
-static char dict[0x10000], *dictnext = dict;
 
 /* clang-format off */
 
@@ -107,13 +104,12 @@ walkcomment(char *w, FILE *f)
 {
 	int depth = 1;
 	char c;
-	if(slen(w) == 1)
-		while(fread(&c, 1, 1, f)) {
-			if(c == '(')
-				depth++;
-			else if(c == ')' && --depth < 1)
-				return 1;
-		}
+	while(fread(&c, 1, 1, f)) {
+		if(c == '(')
+			depth++;
+		else if(c == ')' && --depth < 1)
+			return 1;
+	}
 	return 0;
 }
 
@@ -157,9 +153,9 @@ makelabel(char *name, int setscope)
 	if(cndx(runes, name[0]) >= 0) return error_asm("Label name is runic");
 	if(label_len == 0x400) return error_asm("Labels limit exceeded");
 	l = &labels[label_len++];
+	l->name = push(name, 0);
 	l->addr = ptr;
 	l->refs = 0;
-	l->name = push(name, 0);
 	if(setscope) {
 		int i = 0;
 		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i])) i++;
@@ -184,12 +180,10 @@ makepad(char *w)
 	Item *l;
 	int rel = w[0] == '$' ? ptr : 0;
 	if(sihx(w + 1))
-		ptr = shex(w + 1) + rel;
-	else if((l = findlabel(w + 1)))
-		ptr = l->addr + rel;
-	else
-		return error_asm("Invalid padding");
-	return 1;
+		return ptr = shex(w + 1) + rel;
+	if((l = findlabel(w + 1)))
+		return ptr = l->addr + rel;
+	return 0;
 }
 
 static int
