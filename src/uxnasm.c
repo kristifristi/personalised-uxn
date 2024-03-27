@@ -24,23 +24,17 @@ typedef struct {
 } Macro;
 
 typedef struct {
-	char *name;
+	char *name, rune;
 	Uint16 addr, refs;
 } Label;
-
-typedef struct {
-	char *name, rune;
-	Uint16 addr;
-} Reference;
 
 typedef struct {
 	int ptr, length;
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 line, label_len, macro_len, refs_len;
-	Label labels[0x400];
+	Label labels[0x400], refs[0x1000];
 	Macro macros[0x100];
-	Reference refs[0x1000];
 } Program;
 
 static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
@@ -70,13 +64,13 @@ static char *push(char *s) { char *ptr = storenext; while((*storenext++ = *s++))
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
+#define makesublabel(x) (push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x)))
 #define error_top(name, msg) !!fprintf(stderr, "%s: %s\n", name, msg)
 #define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line)
 
 /* clang-format on */
 
 static int parse(char *w, FILE *f);
-static char *makesublabel(char *name);
 
 static Macro *
 findmacro(char *name)
@@ -201,12 +195,6 @@ makelambda(int id)
 	return lambda;
 }
 
-static char *
-makesublabel(char *name)
-{
-	return push(scat(scat(scpy(scope, sublabel, 0x40), "/"), name));
-}
-
 static int
 makepad(char *w)
 {
@@ -224,7 +212,7 @@ makepad(char *w)
 static int
 addref(char *label, char rune, Uint16 addr)
 {
-	Reference *r;
+	Label *r;
 	if(p.refs_len >= 0x1000)
 		return error_asm("References limit exceeded");
 	r = &p.refs[p.refs_len++];
@@ -358,7 +346,7 @@ resolve(void)
 	int i;
 	Uint16 a;
 	for(i = 0; i < p.refs_len; i++) {
-		Reference *r = &p.refs[i];
+		Label *r = &p.refs[i];
 		Uint8 *rom = p.data + r->addr;
 		switch(r->rune) {
 		case '_':
