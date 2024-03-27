@@ -29,7 +29,7 @@ typedef struct {
 } Label;
 
 typedef struct {
-	char name[0x40], rune;
+	char *name, rune;
 	Uint16 addr;
 } Reference;
 
@@ -43,8 +43,8 @@ typedef struct {
 	Reference refs[0x1000];
 } Program;
 
-char source[0x40], token[0x40], scope[0x40], sublabel[0x40], lambda[0x05];
-char dict[0x10000], *storenext = dict;
+static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
+static char dict[0x10000], *storenext = dict;
 
 Program p;
 
@@ -76,7 +76,7 @@ static char *push(char *s) { char *ptr = storenext; while((*storenext++ = *s++))
 /* clang-format on */
 
 static int parse(char *w, FILE *f);
-static char *makesublabel(char *src, char *name);
+static char *makesublabel(char *name);
 
 static Macro *
 findmacro(char *name)
@@ -93,7 +93,7 @@ findlabel(char *name)
 {
 	int i;
 	if(name[0] == '&')
-		name = makesublabel(sublabel, name + 1);
+		name = makesublabel(name + 1);
 	for(i = 0; i < p.label_len; i++)
 		if(scmp(p.labels[i].name, name, 0x40))
 			return &p.labels[i];
@@ -172,7 +172,7 @@ makelabel(char *name, int setscope)
 {
 	Label *l;
 	if(name[0] == '&')
-		name = makesublabel(sublabel, name + 1);
+		name = makesublabel(name + 1);
 	if(!slen(name)) return error_asm("Label is empty");
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	if(sihx(name)) return error_asm("Label is hex number");
@@ -202,13 +202,9 @@ makelambda(int id)
 }
 
 static char *
-makesublabel(char *buf, char *name)
+makesublabel(char *name)
 {
-	if(slen(scope) + slen(name) >= 0x3f) {
-		(void)error_asm("Sublabel length too long");
-		return NULL;
-	}
-	return scat(scat(scpy(scope, buf, 0x40), "/"), name);
+	return push(scat(scat(scpy(scope, sublabel, 0x40), "/"), name));
 }
 
 static int
@@ -234,12 +230,11 @@ addref(char *label, char rune, Uint16 addr)
 	r = &p.refs[p.refs_len++];
 	if(label[0] == '{') {
 		p.lambda_stack[p.lambda_ptr++] = p.lambda_len;
-		scpy(makelambda(p.lambda_len++), r->name, 0x40);
+		r->name = push(makelambda(p.lambda_len++));
 	} else if(label[0] == '&' || label[0] == '/') {
-		if(!makesublabel(r->name, label + 1))
-			return error_asm("Invalid sublabel");
+		r->name = makesublabel(label + 1);
 	} else
-		scpy(label, r->name, 0x40);
+		r->name = push(label);
 	r->rune = rune;
 	r->addr = addr;
 	return 1;
