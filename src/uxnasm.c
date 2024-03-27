@@ -59,11 +59,11 @@ static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
-static char *push(char *s) { char *ptr = storenext; while((*storenext++ = *s++)); *storenext++ = 0; return ptr; } /* save str */
+static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ = *s++)); *storenext++ = c; return ptr; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
-#define makesublabel(x) (push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x)))
+#define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
 #define error_top(name, msg) !!fprintf(stderr, "%s: %s\n", name, msg)
 #define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line)
 
@@ -145,7 +145,7 @@ makemacro(char *name, FILE *f)
 	if(isopcode(name)) return error_asm("Macro is opcode");
 	if(p.macro_len == 0x100) return error_asm("Macros limit exceeded");
 	m = &p.macros[p.macro_len++];
-	m->name = push(name);
+	m->name = push(name, 0);
 	while(fscanf(f, "%63s", word) == 1) {
 		if(word[0] == '{') continue;
 		if(word[0] == '}') break;
@@ -154,6 +154,7 @@ makemacro(char *name, FILE *f)
 			if(!walkcomment(word, f)) return error_asm("Comment error");
 			continue;
 		}
+
 		scat(scat(m->content, word), " ");
 	}
 	return 1;
@@ -174,7 +175,7 @@ makelabel(char *name, int setscope)
 	l = &p.labels[p.label_len++];
 	l->addr = p.ptr;
 	l->refs = 0;
-	l->name = push(name);
+	l->name = push(name, 0);
 	if(setscope) {
 		int i = 0;
 		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i])) i++;
@@ -216,11 +217,11 @@ addref(char *label, char rune, Uint16 addr)
 	r = &p.refs[p.refs_len++];
 	if(label[0] == '{') {
 		p.lambda_stack[p.lambda_ptr++] = p.lambda_len;
-		r->name = push(makelambda(p.lambda_len++));
+		r->name = push(makelambda(p.lambda_len++), 0);
 	} else if(label[0] == '&' || label[0] == '/') {
 		r->name = makesublabel(label + 1);
 	} else
-		r->name = push(label);
+		r->name = push(label, 0);
 	r->rune = rune;
 	r->addr = addr;
 	return 1;
