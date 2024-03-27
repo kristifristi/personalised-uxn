@@ -64,7 +64,7 @@ static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, 
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
-static char *scat(char *dst, const char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
+static char *scat(char *dst, char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
@@ -203,7 +203,7 @@ static char *
 makesublabel(char *buf, char *name)
 {
 	if(slen(scope) + slen(name) >= 0x3f) {
-		error_asm("Sublabel length too long");
+		(void)error_asm("Sublabel length too long");
 		return NULL;
 	}
 	return scat(scat(scpy(scope, buf, 0x40), "/"), name);
