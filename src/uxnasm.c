@@ -20,7 +20,6 @@ typedef unsigned short Uint16;
 
 typedef struct {
 	char *name, content[0x80];
-	Uint8 len;
 } Macro;
 
 typedef struct {
@@ -151,7 +150,6 @@ makemacro(char *name, FILE *f)
 		if(word[0] == '{') continue;
 		if(word[0] == '}') break;
 		if(word[0] == '%') return error_asm("Macro error");
-		if(m->len >= 0x40) return error_asm("Macro size exceeded");
 		if(word[0] == '(') {
 			if(!walkcomment(word, f)) return error_asm("Comment error");
 			continue;
