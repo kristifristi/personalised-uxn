@@ -19,7 +19,7 @@ typedef signed char Sint8;
 typedef unsigned short Uint16;
 
 typedef struct {
-	char name[0x40], items[0x40][0x40];
+	char *name, items[0x40][0x40];
 	Uint8 len;
 } Macro;
 
@@ -44,6 +44,7 @@ typedef struct {
 } Program;
 
 char source[0x40], token[0x40], scope[0x40], sublabel[0x40], lambda[0x05];
+char dict[0x10000], *storenext = dict;
 
 Program p;
 
@@ -65,6 +66,7 @@ static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
+static char *push(char *s) { char *ptr = storenext; while((*storenext++ = *s++)); *storenext++ = 0; return ptr; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
@@ -72,18 +74,6 @@ static char *scat(char *dst, char *src) { char *ptr = dst + slen(dst); while(*sr
 #define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line)
 
 /* clang-format on */
-
-char storage[0x10000], *storenext = storage;
-
-static char *
-store(char *s)
-{
-	char *ptr = storenext;
-	while((*storenext++ = *s++))
-		;
-	*storenext++ = 0;
-	return ptr;
-}
 
 static int parse(char *w, FILE *f);
 static char *makesublabel(char *src, char *name);
@@ -162,7 +152,7 @@ makemacro(char *name, FILE *f)
 	if(isopcode(name)) return error_asm("Macro is opcode");
 	if(p.macro_len == 0x100) return error_asm("Macros limit exceeded");
 	m = &p.macros[p.macro_len++];
-	scpy(name, m->name, 0x40);
+	m->name = push(name);
 	while(fscanf(f, "%63s", word) == 1) {
 		if(word[0] == '{') continue;
 		if(word[0] == '}') break;
@@ -192,7 +182,7 @@ makelabel(char *name, int setscope)
 	l = &p.labels[p.label_len++];
 	l->addr = p.ptr;
 	l->refs = 0;
-	l->name = store(name);
+	l->name = push(name);
 	if(setscope) {
 		int i = 0;
 		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i])) i++;
