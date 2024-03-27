@@ -21,14 +21,14 @@ typedef unsigned short Uint16;
 typedef struct {
 	char *name, rune, *content;
 	Uint16 addr, refs;
-} Label;
+} Item;
 
 typedef struct {
 	int ptr, length;
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 line, label_len, macro_len, refs_len;
-	Label labels[0x400], refs[0x1000], macros[0x100];
+	Item labels[0x400], refs[0x1000], macros[0x100];
 } Program;
 
 static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
@@ -66,7 +66,7 @@ static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ 
 
 static int parse(char *w, FILE *f);
 
-static Label *
+static Item *
 findmacro(char *name)
 {
 	int i;
@@ -76,7 +76,7 @@ findmacro(char *name)
 	return NULL;
 }
 
-static Label *
+static Item *
 findlabel(char *name)
 {
 	int i;
@@ -132,7 +132,7 @@ walkcomment(char *w, FILE *f)
 static int
 makemacro(char *name, FILE *f)
 {
-	Label *m;
+	Item *m;
 	char word[0x40];
 	if(!slen(name)) return error_asm("Macro is empty");
 	if(findmacro(name)) return error_asm("Macro is duplicate");
@@ -159,7 +159,7 @@ makemacro(char *name, FILE *f)
 static int
 makelabel(char *name, int setscope)
 {
-	Label *l;
+	Item *l;
 	if(name[0] == '&')
 		name = makesublabel(name + 1);
 	if(!slen(name)) return error_asm("Label is empty");
@@ -193,7 +193,7 @@ makelambda(int id)
 static int
 makepad(char *w)
 {
-	Label *l;
+	Item *l;
 	int rel = w[0] == '$' ? p.ptr : 0;
 	if(sihx(w + 1))
 		p.ptr = shex(w + 1) + rel;
@@ -207,7 +207,7 @@ makepad(char *w)
 static int
 addref(char *label, char rune, Uint16 addr)
 {
-	Label *r;
+	Item *r;
 	if(p.refs_len >= 0x1000)
 		return error_asm("References limit exceeded");
 	r = &p.refs[p.refs_len++];
@@ -251,7 +251,7 @@ writehex(char *w)
 }
 
 static int
-walkmacro(Label *m)
+walkmacro(Item *m)
 {
 	char c, *contentptr = m->content, *cptr = token;
 	while((c = *contentptr++)) {
@@ -303,7 +303,7 @@ static int
 parse(char *w, FILE *f)
 {
 	char c;
-	Label *m;
+	Item *m;
 	switch(w[0]) {
 	case '(': return !walkcomment(w, f) ? error_asm("Invalid comment") : 1;
 	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
@@ -346,11 +346,11 @@ parse(char *w, FILE *f)
 static int
 resolve(void)
 {
-	Label *l;
+	Item *l;
 	int i;
 	Uint16 a;
 	for(i = 0; i < p.refs_len; i++) {
-		Label *r = &p.refs[i];
+		Item *r = &p.refs[i];
 		Uint8 *rom = p.data + r->addr;
 		switch(r->rune) {
 		case '_':
