@@ -153,7 +153,7 @@ makemacro(char *name, FILE *f)
 		if(word[0] == '%') return error_asm("Macro error");
 		if(m->len >= 0x40) return error_asm("Macro size exceeded");
 		if(word[0] == '(') {
-			walkcomment(word, f);
+			if(!walkcomment(word, f)) return error_asm("Comment error");
 			continue;
 		}
 		scpy(word, m->items[m->len++], 0x40);
