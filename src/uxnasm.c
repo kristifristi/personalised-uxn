@@ -84,10 +84,8 @@ findopcode(char *s)
 	int i;
 	for(i = 0; i < 0x20; i++) {
 		int m = 3;
-		if(!scmp(ops[i], s, 3))
-			continue;
-		if(!i)
-			i |= (1 << 7);
+		if(!scmp(ops[i], s, 3)) continue;
+		if(!i) i |= (1 << 7);
 		while(s[m]) {
 			if(s[m] == '2')
 				i |= (1 << 5);
@@ -194,7 +192,8 @@ makelabel(char *name, int setscope, Context *ctx)
 	l->refs = 0;
 	if(setscope) {
 		int i = 0;
-		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i])) i++;
+		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i]))
+			i++;
 		scope[i] = '\0';
 	}
 	return 1;
@@ -329,15 +328,12 @@ parse(char *w, FILE *f, Context *ctx)
 		return writebyte(findopcode(w), ctx);
 	else if((m = findmacro(w)))
 		return walkmacro(m, ctx);
-	else
-		return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
-	return 1;
+	return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 }
 
 static int
 resolve(void)
 {
-
 	int i;
 	Uint16 a;
 	for(i = 0; i < refs_len; i++) {
