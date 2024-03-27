@@ -11,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
 
-#define TRIM 0x0100
+#define PAGE 0x0100
 
 typedef unsigned char Uint8;
 typedef signed char Sint8;
@@ -46,7 +46,7 @@ static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, 
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
-static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src) *o++ = *src++; *o = '\0'; return dst; } /* str cat */
+static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src) *o++ = *src++; *o = '\0'; return dst; } /* str concat */
 static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
@@ -105,6 +105,7 @@ walkcomment(char *w, FILE *f)
 	int depth = 1;
 	char c;
 	while(fread(&c, 1, 1, f)) {
+		if(c == 0xa) line++;
 		if(c == '(')
 			depth++;
 		else if(c == ')' && --depth < 1)
@@ -208,7 +209,7 @@ addref(char *label, char rune, Uint16 addr)
 static int
 writebyte(Uint8 b)
 {
-	if(ptr < TRIM)
+	if(ptr < PAGE)
 		return error_asm("Writing in zero-page");
 	else if(ptr >= 0x10000)
 		return error_asm("Writing outside memory");
@@ -252,10 +253,9 @@ walkfile(FILE *f)
 {
 	char c, *cptr = token;
 	while(fread(&c, 1, 1, f)) {
+		if(c == 0xa) line++;
 		if(c < 0x21) {
 			*cptr++ = 0x00;
-			if(c == 0x0a)
-				line++;
 			if(token[0] && !parse(token, f))
 				return 0;
 			cptr = token;
@@ -383,8 +383,8 @@ review(char *filename)
 	fprintf(stdout,
 		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
 		filename,
-		length - TRIM,
-		(length - TRIM) / 652.80,
+		length - PAGE,
+		(length - PAGE) / 652.80,
 		label_len,
 		macro_len);
 }
@@ -413,15 +413,15 @@ int
 main(int argc, char *argv[])
 {
 	FILE *dst;
-	ptr = 0x100;
+	ptr = PAGE;
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 26 Mar 2024.\n");
 	if(!makeinclude(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
-	if(length <= TRIM) return !error_top("Assembly", "Output rom is empty.");
+	if(length <= PAGE) return !error_top("Assembly", "Output rom is empty.");
 	review(argv[2]);
-	fwrite(data + TRIM, length - TRIM, 1, dst);
+	fwrite(data + PAGE, length - PAGE, 1, dst);
 	writesym(argv[2]);
 	return 0;
 }
