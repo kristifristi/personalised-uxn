@@ -113,10 +113,44 @@ walkcomment(FILE *f)
 }
 
 static int
+walkmacro(Item *m)
+{
+	char c, *contentptr = m->content, *cptr = token;
+	while((c = *contentptr++)) {
+		if(c < 0x21) {
+			*cptr++ = 0x00;
+			if(token[0] && !parse(token, NULL)) return 0;
+			cptr = token;
+		} else
+			*cptr++ = c;
+	}
+	return 1;
+}
+
+static int
+walkfile(FILE *f)
+{
+	char c, *cptr = token;
+	while(fread(&c, 1, 1, f)) {
+		if(c == 0xa) line++;
+		if(c < 0x21) {
+			*cptr++ = 0x00;
+			if(token[0] && !parse(token, f))
+				return 0;
+			cptr = token;
+		} else if(cptr - token < 0x3f)
+			*cptr++ = c;
+		else
+			return error_asm("Token too long");
+	}
+	return 1;
+}
+
+static int
 makemacro(char *name, FILE *f)
 {
 	Item *m;
-	char c, word[0x40];
+	char c;
 	if(!slen(name)) return error_asm("Macro is empty");
 	if(findmacro(name)) return error_asm("Macro is duplicate");
 	if(sihx(name)) return error_asm("Macro is hex number");
@@ -227,40 +261,6 @@ writehex(char *w)
 		return writeshort(shex(w));
 	else
 		return 0;
-}
-
-static int
-walkmacro(Item *m)
-{
-	char c, *contentptr = m->content, *cptr = token;
-	while((c = *contentptr++)) {
-		if(c < 0x21) {
-			*cptr++ = 0x00;
-			if(token[0] && !parse(token, NULL)) return 0;
-			cptr = token;
-		} else
-			*cptr++ = c;
-	}
-	return 1;
-}
-
-static int
-walkfile(FILE *f)
-{
-	char c, *cptr = token;
-	while(fread(&c, 1, 1, f)) {
-		if(c == 0xa) line++;
-		if(c < 0x21) {
-			*cptr++ = 0x00;
-			if(token[0] && !parse(token, f))
-				return 0;
-			cptr = token;
-		} else if(cptr - token < 0x3f)
-			*cptr++ = c;
-		else
-			return error_asm("Token too long");
-	}
-	return 1;
 }
 
 static int
