@@ -19,11 +19,7 @@ typedef signed char Sint8;
 typedef unsigned short Uint16;
 
 typedef struct {
-	char *name, content[0x80];
-} Macro;
-
-typedef struct {
-	char *name, rune;
+	char *name, rune, *content;
 	Uint16 addr, refs;
 } Label;
 
@@ -32,8 +28,7 @@ typedef struct {
 	Uint8 data[LENGTH];
 	Uint8 lambda_stack[0x100], lambda_ptr, lambda_len;
 	Uint16 line, label_len, macro_len, refs_len;
-	Label labels[0x400], refs[0x1000];
-	Macro macros[0x100];
+	Label labels[0x400], refs[0x1000], macros[0x100];
 } Program;
 
 static char source[0x40], token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
@@ -59,7 +54,7 @@ static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, char *src) { char *ptr = dst + slen(dst); while(*src) *ptr++ = *src++; *ptr = '\0'; return dst; } /* str cat */
-static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ = *s++)); *storenext++ = c; return ptr; } /* save str */
+static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ = *s++) && *s); *storenext++ = c; return ptr; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
@@ -71,7 +66,7 @@ static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ 
 
 static int parse(char *w, FILE *f);
 
-static Macro *
+static Label *
 findmacro(char *name)
 {
 	int i;
@@ -137,7 +132,7 @@ walkcomment(char *w, FILE *f)
 static int
 makemacro(char *name, FILE *f)
 {
-	Macro *m;
+	Label *m;
 	char word[0x40];
 	if(!slen(name)) return error_asm("Macro is empty");
 	if(findmacro(name)) return error_asm("Macro is duplicate");
@@ -146,6 +141,7 @@ makemacro(char *name, FILE *f)
 	if(p.macro_len == 0x100) return error_asm("Macros limit exceeded");
 	m = &p.macros[p.macro_len++];
 	m->name = push(name, 0);
+	m->content = storenext;
 	while(fscanf(f, "%63s", word) == 1) {
 		if(word[0] == '{') continue;
 		if(word[0] == '}') break;
@@ -154,9 +150,9 @@ makemacro(char *name, FILE *f)
 			if(!walkcomment(word, f)) return error_asm("Comment error");
 			continue;
 		}
-
-		scat(scat(m->content, word), " ");
+		push(word, ' ');
 	}
+	*storenext++ = 0;
 	return 1;
 }
 
@@ -255,7 +251,7 @@ writehex(char *w)
 }
 
 static int
-walkmacro(Macro *m)
+walkmacro(Label *m)
 {
 	char c, *contentptr = m->content, *cptr = token;
 	while((c = *contentptr++)) {
@@ -307,7 +303,7 @@ static int
 parse(char *w, FILE *f)
 {
 	char c;
-	Macro *m;
+	Label *m;
 	switch(w[0]) {
 	case '(': return !walkcomment(w, f) ? error_asm("Invalid comment") : 1;
 	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
