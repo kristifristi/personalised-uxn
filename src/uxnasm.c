@@ -59,6 +59,8 @@ static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define writeshort(x) (writebyte(x >> 8) && writebyte(x & 0xff))
 #define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
+#define findlabel(x) finditem(x, p.labels, p.label_len)
+#define findmacro(x) finditem(x, p.macros, p.macro_len)
 #define error_top(name, msg) !!fprintf(stderr, "%s: %s\n", name, msg)
 #define error_asm(name) !!fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, source, p.line)
 
@@ -67,24 +69,14 @@ static char *push(char *s, char c) { char *ptr = storenext; while((*storenext++ 
 static int parse(char *w, FILE *f);
 
 static Item *
-findmacro(char *name)
-{
-	int i;
-	for(i = 0; i < p.macro_len; i++)
-		if(scmp(p.macros[i].name, name, 0x40))
-			return &p.macros[i];
-	return NULL;
-}
-
-static Item *
-findlabel(char *name)
+finditem(char *name, Item *list, int length)
 {
 	int i;
 	if(name[0] == '&')
 		name = makesublabel(name + 1);
-	for(i = 0; i < p.label_len; i++)
-		if(scmp(p.labels[i].name, name, 0x40))
-			return &p.labels[i];
+	for(i = 0; i < length; i++)
+		if(scmp(list[i].name, name, 0x40))
+			return &list[i];
 	return NULL;
 }
 
