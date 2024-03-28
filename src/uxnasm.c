@@ -30,7 +30,7 @@ typedef struct {
 static int ptr, length;
 static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
 static char dict[0x10000], *dictnext = dict;
-static Uint8 rom[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
+static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 label_len, refs_len, macro_len;
 static Item labels[0x400], refs[0x1000], macros[0x100];
 
@@ -253,8 +253,9 @@ writebyte(Uint8 b, Context *ctx)
 		return error_asm("Writing outside memory");
 	else if(ptr < length)
 		return error_asm("Writing rewind");
-	rom[ptr++] = b;
-	length = ptr;
+	data[ptr++] = b;
+	if(b)
+		length = ptr;
 	return 1;
 }
 
@@ -300,9 +301,6 @@ parse(char *w, FILE *f, Context *ctx)
 {
 	Item *m;
 	switch(w[0]) {
-	case '$':
-	case '|': return !writepad(w) ? error_asm("Invalid padding") : 1;
-	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
 	case '(': return !walkcomment(f, ctx) ? error_asm("Invalid comment") : 1;
 	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f, ctx) ? error_asm("Invalid macro") : 1;
@@ -319,6 +317,9 @@ parse(char *w, FILE *f, Context *ctx)
 	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
 	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
 	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
+	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
+	case '$':
+	case '|': return !writepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
 	case ']': return 1;
 	}
@@ -337,14 +338,13 @@ resolve(void)
 	int i, rel;
 	for(i = 0; i < refs_len; i++) {
 		Item *r = &refs[i], *l = findlabel(r->name);
-		Uint8 *rom = rom + r->addr;
-		if(!l)
-			return error_top("Unknown reference", r->name);
+		Uint8 *rom = data + r->addr;
+		if(!l) return 0;
 		switch(r->rune) {
 		case '_':
 		case ',':
 			*rom = rel = l->addr - r->addr - 2;
-			if((Sint8)rom[r->addr] != rel)
+			if((Sint8)data[r->addr] != rel)
 				return error_top("Relative reference is too far", r->name);
 			break;
 		case '-':
@@ -412,11 +412,12 @@ main(int argc, char *argv[])
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 27 Mar 2024.\n");
-	if(!makeinclude(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!makeinclude(argv[1])) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!resolve()) return !error_top("Assembly", "Failed to resolve symbols.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
 	if(length <= PAGE) return !error_top("Assembly", "Output rom is empty.");
 	review(argv[2]);
-	fwrite(rom + PAGE, length - PAGE, 1, dst);
+	fwrite(data + PAGE, length - PAGE, 1, dst);
 	writesym(argv[2]);
 	return 0;
 }
