@@ -29,7 +29,7 @@ typedef struct {
 
 static int ptr, length;
 static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
-static char dict[0x10000], *dictnext = dict;
+static char dict[0x4000], *dictnext = dict;
 static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 label_len, refs_len, macro_len;
 static Item labels[0x400], refs[0x1000], macros[0x100];
@@ -52,7 +52,6 @@ static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src) *o++ = *src++; *o = '\0'; return dst; } /* str concat */
-static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define isinvalid(x) (!slen(x) || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
@@ -66,6 +65,23 @@ static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s
 /* clang-format on */
 
 static int parse(char *w, FILE *f, Context *ctx);
+
+static char *
+push(char *s, char c)
+{
+	char *d = dict, *o = dictnext;
+	/* find */
+	for(d = dict; d < dictnext; d++) {
+		char *ss = s, *pp = d, a, b;
+		while((a = *pp++) == (b = *ss++))
+			if(!a && !b) return d;
+	}
+	/* save */
+	while((*dictnext++ = *s++) && *s)
+		;
+	*dictnext++ = c;
+	return o;
+}
 
 static Item *
 finditem(char *name, Item *list, int len)
@@ -407,7 +423,7 @@ main(int argc, char *argv[])
 	ptr = PAGE;
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
-	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 27 Mar 2024.\n");
+	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 28 Mar 2024.\n");
 	if(!makeinclude(argv[1])) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!resolve()) return !error_top("Assembly", "Failed to resolve symbols.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
