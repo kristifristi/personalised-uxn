@@ -188,8 +188,10 @@ makemacro(char *name, FILE *f, Context *ctx)
 	while(f && fread(&c, 1, 1, f) && c != '}') {
 		if(c == 0xa) ctx->line += 1;
 		if(c == '%') return 0;
-		if(c == '(') walkcomment(f, ctx);
-		*dictnext++ = c;
+		if(c == '(')
+			walkcomment(f, ctx);
+		else
+			*dictnext++ = c;
 	}
 	*dictnext++ = 0;
 	return 1;
