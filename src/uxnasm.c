@@ -30,7 +30,7 @@ typedef struct {
 } Context;
 
 static int ptr, length;
-static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
+static char token[0x40], scope[0x40], lambda[0x05];
 static char dict[0x4000], *dictnext = dict;
 static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 labels_len, refs_len, macro_len;
@@ -51,13 +51,12 @@ static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, 
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
-static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src) *o++ = *src++; *o = '\0'; return dst; } /* str concat */
 static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save to dict */
+static char *join(char *a, char j, char *b) { char *res = dictnext; save(a, j), save(b, 0); return res; } /* join two str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
-#define isinvalid(x) (!slen(x) || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
+#define isinvalid(x) (!x[0] || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
 #define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
-#define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
 #define findlabel(x) finditem(x, labels, labels_len)
 #define findmacro(x) finditem(x, macros, macro_len)
 #define error_top(name, msg) !fprintf(stderr, "%s: %s\n", name, msg)
@@ -84,7 +83,7 @@ finditem(char *name, Item *list, int len)
 {
 	int i;
 	if(name[0] == '&')
-		name = makesublabel(name + 1);
+		name = join(scope, '/', name + 1);
 	for(i = 0; i < len; i++)
 		if(scmp(list[i].name, name, 0x40))
 			return &list[i];
@@ -202,7 +201,7 @@ makelabel(char *name, int setscope, Context *ctx)
 {
 	Item *l;
 	if(name[0] == '&')
-		name = makesublabel(name + 1);
+		name = join(scope, '/', name + 1);
 	if(labels_len >= 0x400) return error_asm("Labels limit exceeded");
 	if(isinvalid(name)) return error_asm("Label is invalid");
 	if(findlabel(name)) return error_asm("Label is duplicate");
@@ -229,7 +228,7 @@ makeref(char *label, char rune, Uint16 addr)
 		lambda_stack[lambda_ptr++] = lambda_len;
 		r->name = push(makelambda(lambda_len++), 0);
 	} else if(label[0] == '&' || label[0] == '/') {
-		r->name = makesublabel(label + 1);
+		r->name = join(scope, '/', label + 1);
 	} else
 		r->name = push(label, 0);
 	r->rune = rune;
@@ -380,7 +379,7 @@ build(char *rompath)
 {
 	int i;
 	FILE *dst, *dstsym;
-	char *sympath;
+	char *sympath = join(rompath, '.', "sym");
 	/* rom */
 	if(!(dst = fopen(rompath, "wb")))
 		return !error_top("Invalid output file", rompath);
@@ -396,7 +395,6 @@ build(char *rompath)
 		labels_len,
 		macro_len);
 	/* sym */
-	sympath = dictnext, save(rompath, '.'), save("sym", 0);
 	if(!(dstsym = fopen(sympath, "w")))
 		return !error_top("Invalid symbols file", sympath);
 	for(i = 0; i < labels_len; i++) {
