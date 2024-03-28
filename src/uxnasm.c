@@ -30,7 +30,7 @@ typedef struct {
 static int ptr, length;
 static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
 static char dict[0x10000], *dictnext = dict;
-static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
+static Uint8 rom[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 label_len, refs_len, macro_len;
 static Item labels[0x400], refs[0x1000], macros[0x100];
 
@@ -210,22 +210,6 @@ makelambda(int id)
 }
 
 static int
-makepad(char *w)
-{
-	Item *l;
-	int rel = w[0] == '$' ? ptr : 0;
-	if(sihx(w + 1)) {
-		ptr = shex(w + 1) + rel;
-		return 1;
-	}
-	if((l = findlabel(w + 1))) {
-		ptr = l->addr + rel;
-		return 1;
-	}
-	return 0;
-}
-
-static int
 addref(char *label, char rune, Uint16 addr)
 {
 	Item *r;
@@ -245,6 +229,22 @@ addref(char *label, char rune, Uint16 addr)
 }
 
 static int
+writepad(char *w)
+{
+	Item *l;
+	int rel = w[0] == '$' ? ptr : 0;
+	if(sihx(w + 1)) {
+		ptr = shex(w + 1) + rel;
+		return 1;
+	}
+	if((l = findlabel(w + 1))) {
+		ptr = l->addr + rel;
+		return 1;
+	}
+	return 0;
+}
+
+static int
 writebyte(Uint8 b, Context *ctx)
 {
 	if(ptr < PAGE)
@@ -253,7 +253,7 @@ writebyte(Uint8 b, Context *ctx)
 		return error_asm("Writing outside memory");
 	else if(ptr < length)
 		return error_asm("Writing rewind");
-	data[ptr++] = b;
+	rom[ptr++] = b;
 	length = ptr;
 	return 1;
 }
@@ -300,6 +300,9 @@ parse(char *w, FILE *f, Context *ctx)
 {
 	Item *m;
 	switch(w[0]) {
+	case '$':
+	case '|': return !writepad(w) ? error_asm("Invalid padding") : 1;
+	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
 	case '(': return !walkcomment(f, ctx) ? error_asm("Invalid comment") : 1;
 	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f, ctx) ? error_asm("Invalid macro") : 1;
@@ -316,9 +319,6 @@ parse(char *w, FILE *f, Context *ctx)
 	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
 	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
 	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
-	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
-	case '$':
-	case '|': return !makepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
 	case ']': return 1;
 	}
@@ -332,46 +332,38 @@ parse(char *w, FILE *f, Context *ctx)
 }
 
 static int
-writeref(Item *r)
-{
-	int rel;
-	Uint8 *rom = data + r->addr;
-	Item *l = findlabel(r->name);
-	if(!l) return 0;
-	switch(r->rune) {
-	case '_':
-	case ',':
-		*rom = rel = l->addr - r->addr - 2;
-		if((Sint8)data[r->addr] != rel)
-			return error_top("Relative reference is too far", r->name);
-		break;
-	case '-':
-	case '.':
-		*rom = l->addr;
-		break;
-	case ':':
-	case '=':
-	case ';':
-		*rom++ = l->addr >> 8, *rom = l->addr;
-		break;
-	case '?':
-	case '!':
-	default:
-		rel = l->addr - r->addr - 2;
-		*rom++ = rel >> 8, *rom = rel;
-		break;
-	}
-	l->refs++;
-	return 1;
-}
-
-static int
 resolve(void)
 {
-	int i;
+	int i, rel;
 	for(i = 0; i < refs_len; i++) {
-		Item *r = &refs[i];
-		if(!writeref(r)) return error_top("Unknown reference", r->name);
+		Item *r = &refs[i], *l = findlabel(r->name);
+		Uint8 *rom = rom + r->addr;
+		if(!l)
+			return error_top("Unknown reference", r->name);
+		switch(r->rune) {
+		case '_':
+		case ',':
+			*rom = rel = l->addr - r->addr - 2;
+			if((Sint8)rom[r->addr] != rel)
+				return error_top("Relative reference is too far", r->name);
+			break;
+		case '-':
+		case '.':
+			*rom = l->addr;
+			break;
+		case ':':
+		case '=':
+		case ';':
+			*rom++ = l->addr >> 8, *rom = l->addr;
+			break;
+		case '?':
+		case '!':
+		default:
+			rel = l->addr - r->addr - 2;
+			*rom++ = rel >> 8, *rom = rel;
+			break;
+		}
+		l->refs++;
 	}
 	return 1;
 }
@@ -424,7 +416,7 @@ main(int argc, char *argv[])
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
 	if(length <= PAGE) return !error_top("Assembly", "Output rom is empty.");
 	review(argv[2]);
-	fwrite(data + PAGE, length - PAGE, 1, dst);
+	fwrite(rom + PAGE, length - PAGE, 1, dst);
 	writesym(argv[2]);
 	return 0;
 }
