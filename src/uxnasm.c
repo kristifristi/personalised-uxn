@@ -22,7 +22,7 @@ typedef struct { char *name, rune, *content; Uint16 addr, refs; } Item;
 typedef struct { int line; char *path; } Context;
 
 static int ptr, length;
-static char token[0x40], scope[0x40], lambda[0x05];
+static char token[0x40], *scope, lambda[0x05];
 static char dict[0x4000], *dictnext = dict;
 static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
 static Uint16 labels_len, refs_len, macro_len;
@@ -41,7 +41,6 @@ static int   cndx(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c
 static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) return 0; return 1; } /* str is hex */
 static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= cndx(hexad, c); } return n; } /* str to num */
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
-static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save to dict */
 static char *join(char *a, char j, char *b) { char *res = dictnext; save(a, j), save(b, 0); return res; } /* join two str */
 
@@ -404,7 +403,7 @@ int
 main(int argc, char *argv[])
 {
 	ptr = PAGE;
-	scpy("on-reset", scope, 0x40);
+	scope = push("On-reset", 0);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 28 Mar 2024.\n");
 	if(!assemble(argv[1]) || !length) return !error_top("Assembly", "Failed to assemble rom.");
