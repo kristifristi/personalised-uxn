@@ -72,8 +72,8 @@ push(char *s, char c)
 	char *d = dict, *o = dictnext;
 	/* find */
 	for(d = dict; d < dictnext; d++) {
-		char *ss = s, *pp = d, a, b;
-		while((a = *pp++) == (b = *ss++))
+		char *ss = s, *dd = d, a, b;
+		while((a = *dd++) == (b = *ss++))
 			if(!a && !b) return d;
 	}
 	/* save */
@@ -335,12 +335,9 @@ parse(char *w, FILE *f, Context *ctx)
 	case '[':
 	case ']': return 1;
 	}
-	if(sihx(w))
-		return writehex(w, ctx);
-	else if(isopcode(w))
-		return writebyte(findopcode(w), ctx);
-	else if((m = findmacro(w)))
-		return walkmacro(m, ctx);
+	if(sihx(w)) return writehex(w, ctx);
+	if(isopcode(w)) return writebyte(findopcode(w), ctx);
+	if((m = findmacro(w))) return walkmacro(m, ctx);
 	return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 }
 
@@ -402,9 +399,7 @@ build(char *filename)
 		label_len,
 		macro_len);
 	/* sym */
-	if(slen(filename) > 0x60 - 5)
-		return !error_top("Invalid symbols file", filename);
-	if(!(dstsym = fopen(scat(scpy(filename, sympath, slen(filename) + 1), ".sym"), "w")))
+	if(slen(filename) > 0x5b || !(dstsym = fopen(scat(scpy(filename, sympath, slen(filename) + 1), ".sym"), "w")))
 		return !error_top("Invalid symbols file", filename);
 	for(i = 0; i < label_len; i++) {
 		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
