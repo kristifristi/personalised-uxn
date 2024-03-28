@@ -285,7 +285,16 @@ writehex(char *w, Context *ctx)
 }
 
 static int
-makeinclude(char *filename)
+writestring(char *w, Context *ctx)
+{
+	char c;
+	while((c = *(w++)))
+		if(!writebyte(c, ctx)) return 0;
+	return 1;
+}
+
+static int
+assemble(char *filename)
 {
 	FILE *f;
 	int res = 0;
@@ -300,21 +309,11 @@ makeinclude(char *filename)
 }
 
 static int
-writestring(char *w, Context *ctx)
-{
-	char c;
-	while((c = *(w++)))
-		if(!writebyte(c, ctx)) return 0;
-	return 1;
-}
-
-static int
 parse(char *w, FILE *f, Context *ctx)
 {
 	Item *m;
 	switch(w[0]) {
 	case '(': return !walkcomment(f, ctx) ? error_asm("Invalid comment") : 1;
-	case '~': return !makeinclude(w + 1) ? error_asm("Invalid include") : 1;
 	case '%': return !makemacro(w + 1, f, ctx) ? error_asm("Invalid macro") : 1;
 	case '@': return !makelabel(w + 1, 1, ctx) ? error_asm("Invalid label") : 1;
 	case '&': return !makelabel(w, 0, ctx) ? error_asm("Invalid sublabel") : 1;
@@ -330,6 +329,7 @@ parse(char *w, FILE *f, Context *ctx)
 	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
 	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
 	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
+	case '~': return !assemble(w + 1) ? error_asm("Invalid include") : 1;
 	case '$':
 	case '|': return !writepad(w) ? error_asm("Invalid padding") : 1;
 	case '[':
@@ -424,7 +424,7 @@ main(int argc, char *argv[])
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 28 Mar 2024.\n");
-	if(!makeinclude(argv[1])) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!assemble(argv[1])) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!resolve()) return !error_top("Assembly", "Failed to resolve symbols.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
 	if(length <= PAGE) return !error_top("Assembly", "Output rom is empty.");
