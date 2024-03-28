@@ -381,31 +381,13 @@ resolve(void)
 	return 1;
 }
 
-static void
-writesym(char *filename)
-{
-	int i;
-	char symdst[0x60];
-	FILE *fp;
-	if(slen(filename) > 0x60 - 5)
-		return;
-	fp = fopen(scat(scpy(filename, symdst, slen(filename) + 1), ".sym"), "w");
-	if(fp != NULL) {
-		for(i = 0; i < label_len; i++) {
-			Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
-			fwrite(&hb, 1, 1, fp);
-			fwrite(&lb, 1, 1, fp);
-			fwrite(labels[i].name, slen(labels[i].name) + 1, 1, fp);
-		}
-	}
-	fclose(fp);
-}
-
 static int
 build(char *filename)
 {
 	int i;
-	FILE *dst;
+	FILE *dst, *dstsym;
+	char sympath[0x60];
+	/* rom */
 	if(!(dst = fopen(filename, "wb")))
 		return !error_top("Invalid output file", filename);
 	for(i = 0; i < label_len; i++)
@@ -419,8 +401,18 @@ build(char *filename)
 		(length - PAGE) / 652.80,
 		label_len,
 		macro_len);
-	writesym(filename);
-	fclose(dst);
+	/* sym */
+	if(slen(filename) > 0x60 - 5)
+		return !error_top("Invalid symbols file", filename);
+	if(!(dstsym = fopen(scat(scpy(filename, sympath, slen(filename) + 1), ".sym"), "w")))
+		return !error_top("Invalid symbols file", filename);
+	for(i = 0; i < label_len; i++) {
+		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
+		fwrite(&hb, 1, 1, dstsym);
+		fwrite(&lb, 1, 1, dstsym);
+		fwrite(labels[i].name, slen(labels[i].name) + 1, 1, dstsym);
+	}
+	fclose(dst), fclose(dstsym);
 	return 1;
 }
 
