@@ -18,16 +18,8 @@ WITH REGARD TO THIS SOFTWARE.
 typedef unsigned char Uint8;
 typedef signed char Sint8;
 typedef unsigned short Uint16;
-
-typedef struct {
-	char *name, rune, *content;
-	Uint16 addr, refs;
-} Item;
-
-typedef struct {
-	int line;
-	char *path;
-} Context;
+typedef struct { char *name, rune, *content; Uint16 addr, refs; } Item;
+typedef struct { int line; char *path; } Context;
 
 static int ptr, length;
 static char token[0x40], scope[0x40], lambda[0x05];
@@ -49,7 +41,6 @@ static int   cndx(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c
 static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) return 0; return 1; } /* str is hex */
 static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= cndx(hexad, c); } return n; } /* str to num */
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
-static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save to dict */
 static char *join(char *a, char j, char *b) { char *res = dictnext; save(a, j), save(b, 0); return res; } /* join two str */
@@ -271,10 +262,10 @@ static int
 writehex(char *w, Context *ctx)
 {
 	if(*w == '#')
-		writebyte(findopcode("LIT") | (slen(++w) > 2) << 5, ctx);
-	if(slen(w) == 2)
+		writebyte(findopcode("LIT") | !!(++w)[2] << 5, ctx);
+	if(!w[2])
 		return writebyte(shex(w), ctx);
-	else if(slen(w) == 4)
+	else if(!w[4])
 		return writeshort(shex(w));
 	else
 		return 0;
@@ -399,9 +390,11 @@ build(char *rompath)
 		return !error_top("Invalid symbols file", sympath);
 	for(i = 0; i < labels_len; i++) {
 		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
+		char c, d = 0, *name = labels[i].name;
 		fwrite(&hb, 1, 1, dstsym);
 		fwrite(&lb, 1, 1, dstsym);
-		fwrite(labels[i].name, slen(labels[i].name) + 1, 1, dstsym);
+		while((c = *name++)) fwrite(&c, 1, 1, dstsym);
+		fwrite(&d, 1, 1, dstsym);
 	}
 	fclose(dst), fclose(dstsym);
 	return 1;
