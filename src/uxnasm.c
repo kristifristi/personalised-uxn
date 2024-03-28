@@ -37,15 +37,15 @@ static char ops[][4] = {
 	"ADD", "SUB", "MUL", "DIV", "AND", "ORA", "EOR", "SFT"
 };
 
-static int   cndx(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c == t) return i; i++; } return -1; } /* chr in str */
-static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) return 0; return 1; } /* str is hex */
-static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= cndx(hexad, c); } return n; } /* str to num */
-static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save to dict */
 static char *join(char *a, char j, char *b) { char *res = dictnext; save(a, j), save(b, 0); return res; } /* join two str */
+static int   find(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c == t) return i; i++; } return -1; } /* chr in str */
+static int   sihx(char *s) { char c; while((c = *s++)) if(find(hexad, c) < 0) return 0; return 1; } /* str is hex */
+static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= find(hexad, c); } return n; } /* str to num */
+static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
-#define isinvalid(x) (!x[0] || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
+#define isinvalid(x) (!x[0] || sihx(x) || isopcode(x) || find(runes, x[0]) >= 0)
 #define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
 #define findlabel(x) finditem(x, labels, labels_len)
 #define findmacro(x) finditem(x, macros, macro_len)
