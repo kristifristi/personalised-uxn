@@ -55,6 +55,7 @@ static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src)
 static char *push(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save str */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
+#define isinvalid(x) (!slen(x) || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
 #define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
 #define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
 #define findlabel(x) finditem(x, labels, label_len)
@@ -154,11 +155,9 @@ makemacro(char *name, FILE *f, Context *ctx)
 {
 	char c;
 	Item *m;
-	if(!slen(name)) return error_asm("Macro is empty");
-	if(findmacro(name)) return error_asm("Macro is duplicate");
-	if(sihx(name)) return error_asm("Macro is hex number");
-	if(isopcode(name)) return error_asm("Macro is opcode");
 	if(macro_len == 0x100) return error_asm("Macros limit exceeded");
+	if(isinvalid(name)) return error_asm("Macro is invalid");
+	if(findmacro(name)) return error_asm("Macro is duplicate");
 	m = &macros[macro_len++];
 	m->name = push(name, 0);
 	m->content = dictnext;
@@ -180,12 +179,9 @@ makelabel(char *name, int setscope, Context *ctx)
 	Item *l;
 	if(name[0] == '&')
 		name = makesublabel(name + 1);
-	if(!slen(name)) return error_asm("Label is empty");
-	if(findlabel(name)) return error_asm("Label is duplicate");
-	if(sihx(name)) return error_asm("Label is hex number");
-	if(isopcode(name)) return error_asm("Label is opcode");
-	if(cndx(runes, name[0]) >= 0) return error_asm("Label name is runic");
 	if(label_len == 0x400) return error_asm("Labels limit exceeded");
+	if(isinvalid(name)) return error_asm("Label is invalid");
+	if(findlabel(name)) return error_asm("Label is duplicate");
 	l = &labels[label_len++];
 	l->name = push(name, 0);
 	l->addr = ptr;
