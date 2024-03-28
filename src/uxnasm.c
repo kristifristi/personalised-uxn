@@ -52,6 +52,7 @@ static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src) *o++ = *src++; *o = '\0'; return dst; } /* str concat */
+static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; }
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define isinvalid(x) (!slen(x) || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
@@ -69,18 +70,14 @@ static int parse(char *w, FILE *f, Context *ctx);
 static char *
 push(char *s, char c)
 {
-	char *d = dict, *o = dictnext;
+	char *d = dict;
 	/* find */
 	for(d = dict; d < dictnext; d++) {
 		char *ss = s, *dd = d, a, b;
 		while((a = *dd++) == (b = *ss++))
 			if(!a && !b) return d;
 	}
-	/* save */
-	while((*dictnext++ = *s++) && *s)
-		;
-	*dictnext++ = c;
-	return o;
+	return save(s, c);
 }
 
 static Item *
@@ -379,28 +376,29 @@ resolve(void)
 }
 
 static int
-build(char *filename)
+build(char *rompath)
 {
 	int i;
 	FILE *dst, *dstsym;
-	char sympath[0x60];
+	char *sympath;
 	/* rom */
-	if(!(dst = fopen(filename, "wb")))
-		return !error_top("Invalid output file", filename);
+	if(!(dst = fopen(rompath, "wb")))
+		return !error_top("Invalid output file", rompath);
 	for(i = 0; i < label_len; i++)
 		if(labels[i].name[0] - 'A' > 25 && !labels[i].refs)
 			fprintf(stdout, "-- Unused label: %s\n", labels[i].name);
 	fwrite(data + PAGE, length - PAGE, 1, dst);
 	fprintf(stdout,
 		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
-		filename,
+		rompath,
 		length - PAGE,
 		(length - PAGE) / 652.80,
 		label_len,
 		macro_len);
 	/* sym */
-	if(slen(filename) > 0x5b || !(dstsym = fopen(scat(scpy(filename, sympath, slen(filename) + 1), ".sym"), "w")))
-		return !error_top("Invalid symbols file", filename);
+	sympath = dictnext, save(rompath, '.'), save("sym", 0);
+	if(!(dstsym = fopen(sympath, "w")))
+		return !error_top("Invalid symbols file", sympath);
 	for(i = 0; i < label_len; i++) {
 		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
 		fwrite(&hb, 1, 1, dstsym);
