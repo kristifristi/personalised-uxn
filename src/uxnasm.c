@@ -348,6 +348,7 @@ static int
 resolve(void)
 {
 	int i, rel;
+	if(!length) return error_top("Assembly", "Output rom is empty.");
 	for(i = 0; i < refs_len; i++) {
 		Item *r = &refs[i], *l = findlabel(r->name);
 		Uint8 *rom = data + r->addr;
@@ -377,23 +378,7 @@ resolve(void)
 		}
 		l->refs++;
 	}
-	return !length ? error_top("Assembly", "Output rom is empty.") : 1;
-}
-
-static void
-review(char *filename)
-{
-	int i;
-	for(i = 0; i < label_len; i++)
-		if(labels[i].name[0] - 'A' > 25 && !labels[i].refs)
-			fprintf(stdout, "-- Unused label: %s\n", labels[i].name);
-	fprintf(stdout,
-		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
-		filename,
-		length - PAGE,
-		(length - PAGE) / 652.80,
-		label_len,
-		macro_len);
+	return 1;
 }
 
 static void
@@ -416,18 +401,38 @@ writesym(char *filename)
 	fclose(fp);
 }
 
+static int
+build(char *filename)
+{
+	int i;
+	FILE *dst;
+	if(!(dst = fopen(filename, "wb")))
+		return !error_top("Invalid output file", filename);
+	for(i = 0; i < label_len; i++)
+		if(labels[i].name[0] - 'A' > 25 && !labels[i].refs)
+			fprintf(stdout, "-- Unused label: %s\n", labels[i].name);
+	fwrite(data + PAGE, length - PAGE, 1, dst);
+	fprintf(stdout,
+		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
+		filename,
+		length - PAGE,
+		(length - PAGE) / 652.80,
+		label_len,
+		macro_len);
+	writesym(filename);
+	fclose(dst);
+	return 1;
+}
+
 int
 main(int argc, char *argv[])
 {
-	FILE *dst;
 	ptr = PAGE;
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 28 Mar 2024.\n");
-	if(!assemble(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
-	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
-	review(argv[2]);
-	fwrite(data + PAGE, length - PAGE, 1, dst);
-	writesym(argv[2]);
+	if(!assemble(argv[1]) || !length) return !error_top("Assembly", "Failed to assemble rom.");
+	if(!resolve()) return !error_top("Assembly", "Failed to resolve symbols.");
+	if(!build(argv[2])) return !error_top("Assembly", "Failed to build rom.");
 	return 0;
 }
