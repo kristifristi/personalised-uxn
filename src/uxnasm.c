@@ -15,28 +15,26 @@ WITH REGARD TO THIS SOFTWARE.
 
 #define PAGE 0x0100
 
-enum Type { LABEL, REF, MACRO };
 typedef unsigned char Uint8;
 typedef signed char Sint8;
 typedef unsigned short Uint16;
+
 typedef struct {
-	enum Type type;
 	char *name, rune, *content;
 	Uint16 addr, refs;
 } Item;
+
 typedef struct {
 	int line;
 	char *path;
 } Context;
 
-static Item items[0x4000];
-static int items_len;
 static int ptr, length;
 static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
 static char dict[0x4000], *dictnext = dict;
 static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
-static Uint16 refs_len, macro_len;
-static Item refs[0x1000], macros[0x100];
+static Uint16 labels_len, refs_len, macro_len;
+static Item labels[0x400], refs[0x1000], macros[0x100];
 
 static char *runes = "|$@&,_.-;=!?#\"%~";
 static char *hexad = "0123456789abcdef";
@@ -60,7 +58,7 @@ static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s
 #define isinvalid(x) (!slen(x) || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
 #define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
 #define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
-#define findlabel(x) finditem(x, items, items_len)
+#define findlabel(x) finditem(x, labels, labels_len)
 #define findmacro(x) finditem(x, macros, macro_len)
 #define error_top(name, msg) !fprintf(stderr, "%s: %s\n", name, msg)
 #define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, ctx->path, ctx->line)
@@ -164,6 +162,16 @@ walkfile(FILE *f, Context *ctx)
 	return 1;
 }
 
+static char *
+makelambda(int id)
+{
+	lambda[0] = (char)0xce;
+	lambda[1] = (char)0xbb;
+	lambda[2] = hexad[id >> 0x4];
+	lambda[3] = hexad[id & 0xf];
+	return lambda;
+}
+
 static int
 makemacro(char *name, FILE *f, Context *ctx)
 {
@@ -193,14 +201,13 @@ makelabel(char *name, int setscope, Context *ctx)
 	Item *l;
 	if(name[0] == '&')
 		name = makesublabel(name + 1);
-	if(items_len == 0x400) return error_asm("Labels limit exceeded");
+	if(labels_len == 0x400) return error_asm("Labels limit exceeded");
 	if(isinvalid(name)) return error_asm("Label is invalid");
 	if(findlabel(name)) return error_asm("Label is duplicate");
-	l = &items[items_len++];
+	l = &labels[labels_len++];
 	l->name = push(name, 0);
 	l->addr = ptr;
 	l->refs = 0;
-	l->type = LABEL;
 	if(setscope) {
 		int i = 0;
 		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i]))
@@ -210,18 +217,8 @@ makelabel(char *name, int setscope, Context *ctx)
 	return 1;
 }
 
-static char *
-makelambda(int id)
-{
-	lambda[0] = (char)0xce;
-	lambda[1] = (char)0xbb;
-	lambda[2] = hexad[id >> 0x4];
-	lambda[3] = hexad[id & 0xf];
-	return lambda;
-}
-
 static int
-addref(char *label, char rune, Uint16 addr)
+makeref(char *label, char rune, Uint16 addr)
 {
 	Item *r;
 	if(refs_len >= 0x1000)
@@ -318,15 +315,15 @@ parse(char *w, FILE *f, Context *ctx)
 	case '&': return !makelabel(w, 0, ctx) ? error_asm("Invalid sublabel") : 1;
 	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ctx) ? error_asm("Invalid label") : 1;
 	case '#': return !sihx(w + 1) || !writehex(w, ctx) ? error_asm("Invalid hexadecimal") : 1;
-	case '_': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
-	case ',': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
-	case '-': return addref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
-	case '.': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
+	case '_': return makeref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
+	case ',': return makeref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
+	case '-': return makeref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
+	case '.': return makeref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
 	case ':': fprintf(stderr, "Deprecated rune %s, use =%s\n", w, w + 1); /* fall-through */
-	case '=': return addref(w + 1, w[0], ptr) && writeshort(0xffff);
-	case ';': return addref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
-	case '?': return addref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
-	case '!': return addref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
+	case '=': return makeref(w + 1, w[0], ptr) && writeshort(0xffff);
+	case ';': return makeref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT2"), ctx) && writeshort(0xffff);
+	case '?': return makeref(w + 1, w[0], ptr + 1) && writebyte(0x20, ctx) && writeshort(0xffff);
+	case '!': return makeref(w + 1, w[0], ptr + 1) && writebyte(0x40, ctx) && writeshort(0xffff);
 	case '"': return !writestring(w + 1, ctx) ? error_asm("Invalid string") : 1;
 	case '~': return !assemble(w + 1) ? error_asm("Invalid include") : 1;
 	case '$':
@@ -337,7 +334,7 @@ parse(char *w, FILE *f, Context *ctx)
 	if(sihx(w)) return writehex(w, ctx);
 	if(isopcode(w)) return writebyte(findopcode(w), ctx);
 	if((m = findmacro(w))) return walkmacro(m, ctx);
-	return addref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
+	return makeref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 }
 
 static int
@@ -386,28 +383,26 @@ build(char *rompath)
 	/* rom */
 	if(!(dst = fopen(rompath, "wb")))
 		return !error_top("Invalid output file", rompath);
-	for(i = 0; i < items_len; i++)
-		if(items[i].type == LABEL && items[i].name[0] - 'A' > 25 && !items[i].refs)
-			fprintf(stdout, "-- Unused label: %s\n", items[i].name);
-		else if(items[i].type == MACRO && items[i].name[0] - 'A' > 25 && !items[i].refs)
-			fprintf(stdout, "-- Unused macro: %s\n", items[i].name);
+	for(i = 0; i < labels_len; i++)
+		if(labels[i].name[0] - 'A' > 25 && !labels[i].refs)
+			fprintf(stdout, "-- Unused label: %s\n", labels[i].name);
 	fwrite(data + PAGE, length - PAGE, 1, dst);
 	fprintf(stdout,
 		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
 		rompath,
 		length - PAGE,
 		(length - PAGE) / 652.80,
-		items_len,
+		labels_len,
 		macro_len);
 	/* sym */
 	sympath = dictnext, save(rompath, '.'), save("sym", 0);
 	if(!(dstsym = fopen(sympath, "w")))
 		return !error_top("Invalid symbols file", sympath);
-	for(i = 0; i < items_len; i++) {
-		Uint8 hb = items[i].addr >> 8, lb = items[i].addr;
+	for(i = 0; i < labels_len; i++) {
+		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
 		fwrite(&hb, 1, 1, dstsym);
 		fwrite(&lb, 1, 1, dstsym);
-		fwrite(items[i].name, slen(items[i].name) + 1, 1, dstsym);
+		fwrite(labels[i].name, slen(labels[i].name) + 1, 1, dstsym);
 	}
 	fclose(dst), fclose(dstsym);
 	return 1;
