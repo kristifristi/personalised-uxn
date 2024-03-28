@@ -332,17 +332,17 @@ parse(char *w, FILE *f, Context *ctx)
 }
 
 static int
-resolveref(Item *r)
+writeref(Item *r)
 {
-	Uint16 a;
+	int rel;
 	Uint8 *rom = data + r->addr;
 	Item *l = findlabel(r->name);
 	if(!l) return 0;
 	switch(r->rune) {
 	case '_':
 	case ',':
-		*rom = (Sint8)(l->addr - r->addr - 2);
-		if((Sint8)data[r->addr] != (l->addr - r->addr - 2))
+		*rom = rel = l->addr - r->addr - 2;
+		if((Sint8)data[r->addr] != rel)
 			return error_top("Relative reference is too far", r->name);
 		break;
 	case '-':
@@ -357,8 +357,8 @@ resolveref(Item *r)
 	case '?':
 	case '!':
 	default:
-		a = l->addr - r->addr - 2;
-		*rom++ = a >> 8, *rom = a;
+		rel = l->addr - r->addr - 2;
+		*rom++ = rel >> 8, *rom = rel;
 		break;
 	}
 	l->refs++;
@@ -371,7 +371,7 @@ resolve(void)
 	int i;
 	for(i = 0; i < refs_len; i++) {
 		Item *r = &refs[i];
-		if(!resolveref(r)) return error_top("Unknown reference", r->name);
+		if(!writeref(r)) return error_top("Unknown reference", r->name);
 	}
 	return 1;
 }
