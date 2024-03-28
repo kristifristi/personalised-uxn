@@ -377,7 +377,7 @@ resolve(void)
 		}
 		l->refs++;
 	}
-	return 1;
+	return !length ? error_top("Assembly", "Output rom is empty.") : 1;
 }
 
 static void
@@ -424,10 +424,8 @@ main(int argc, char *argv[])
 	scpy("on-reset", scope, 0x40);
 	if(argc == 1) return error_top("usage", "uxnasm [-v] input.tal output.rom");
 	if(scmp(argv[1], "-v", 2)) return !fprintf(stdout, "Uxnasm - Uxntal Assembler, 28 Mar 2024.\n");
-	if(!assemble(argv[1])) return !error_top("Assembly", "Failed to assemble rom.");
-	if(!resolve()) return !error_top("Assembly", "Failed to resolve symbols.");
+	if(!assemble(argv[1]) || !resolve()) return !error_top("Assembly", "Failed to assemble rom.");
 	if(!(dst = fopen(argv[2], "wb"))) return !error_top("Invalid Output", argv[2]);
-	if(length <= PAGE) return !error_top("Assembly", "Output rom is empty.");
 	review(argv[2]);
 	fwrite(data + PAGE, length - PAGE, 1, dst);
 	writesym(argv[2]);
