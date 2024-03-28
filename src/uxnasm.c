@@ -177,7 +177,7 @@ makemacro(char *name, FILE *f, Context *ctx)
 {
 	char c;
 	Item *m;
-	if(macro_len == 0x100) return error_asm("Macros limit exceeded");
+	if(macro_len >= 0x100) return error_asm("Macros limit exceeded");
 	if(isinvalid(name)) return error_asm("Macro is invalid");
 	if(findmacro(name)) return error_asm("Macro is duplicate");
 	m = &macros[macro_len++];
@@ -203,7 +203,7 @@ makelabel(char *name, int setscope, Context *ctx)
 	Item *l;
 	if(name[0] == '&')
 		name = makesublabel(name + 1);
-	if(labels_len == 0x400) return error_asm("Labels limit exceeded");
+	if(labels_len >= 0x400) return error_asm("Labels limit exceeded");
 	if(isinvalid(name)) return error_asm("Label is invalid");
 	if(findlabel(name)) return error_asm("Label is duplicate");
 	l = &labels[labels_len++];
@@ -223,8 +223,7 @@ static int
 makeref(char *label, char rune, Uint16 addr)
 {
 	Item *r;
-	if(refs_len >= 0x1000)
-		return error_top("References limit exceeded", label);
+	if(refs_len >= 0x1000) return error_top("References limit exceeded", label);
 	r = &refs[refs_len++];
 	if(label[0] == '{') {
 		lambda_stack[lambda_ptr++] = lambda_len;
