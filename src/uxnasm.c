@@ -11,30 +11,32 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
 
+/* clang-format off */
+
 #define PAGE 0x0100
 
+enum Type { LABEL, REF, MACRO };
 typedef unsigned char Uint8;
 typedef signed char Sint8;
 typedef unsigned short Uint16;
-
 typedef struct {
+	enum Type type;
 	char *name, rune, *content;
 	Uint16 addr, refs;
 } Item;
-
 typedef struct {
 	int line;
 	char *path;
 } Context;
 
+static Item items[0x4000];
+static int items_len;
 static int ptr, length;
 static char token[0x40], scope[0x40], sublabel[0x80], lambda[0x05];
 static char dict[0x4000], *dictnext = dict;
 static Uint8 data[0x10000], lambda_stack[0x100], lambda_ptr, lambda_len;
-static Uint16 label_len, refs_len, macro_len;
-static Item labels[0x400], refs[0x1000], macros[0x100];
-
-/* clang-format off */
+static Uint16 refs_len, macro_len;
+static Item refs[0x1000], macros[0x100];
 
 static char *runes = "|$@&,_.-;=!?#\"%~";
 static char *hexad = "0123456789abcdef";
@@ -52,13 +54,13 @@ static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if
 static int   slen(char *s) { int i = 0; while(s[i]) i++; return i; } /* str length */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *scat(char *dst, char *src) { char *o = dst + slen(dst); while(*src) *o++ = *src++; *o = '\0'; return dst; } /* str concat */
-static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; }
+static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save to dict */
 
 #define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
 #define isinvalid(x) (!slen(x) || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
 #define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
 #define makesublabel(x) push(scat(scat(scpy(scope, sublabel, 0x40), "/"), x), 0)
-#define findlabel(x) finditem(x, labels, label_len)
+#define findlabel(x) finditem(x, items, items_len)
 #define findmacro(x) finditem(x, macros, macro_len)
 #define error_top(name, msg) !fprintf(stderr, "%s: %s\n", name, msg)
 #define error_asm(name) !fprintf(stderr, "%s: %s in @%s, %s:%d.\n", name, token, scope, ctx->path, ctx->line)
@@ -71,7 +73,6 @@ static char *
 push(char *s, char c)
 {
 	char *d = dict;
-	/* find */
 	for(d = dict; d < dictnext; d++) {
 		char *ss = s, *dd = d, a, b;
 		while((a = *dd++) == (b = *ss++))
@@ -192,13 +193,14 @@ makelabel(char *name, int setscope, Context *ctx)
 	Item *l;
 	if(name[0] == '&')
 		name = makesublabel(name + 1);
-	if(label_len == 0x400) return error_asm("Labels limit exceeded");
+	if(items_len == 0x400) return error_asm("Labels limit exceeded");
 	if(isinvalid(name)) return error_asm("Label is invalid");
 	if(findlabel(name)) return error_asm("Label is duplicate");
-	l = &labels[label_len++];
+	l = &items[items_len++];
 	l->name = push(name, 0);
 	l->addr = ptr;
 	l->refs = 0;
+	l->type = LABEL;
 	if(setscope) {
 		int i = 0;
 		while(name[i] != '/' && i < 0x3e && (scope[i] = name[i]))
@@ -384,26 +386,28 @@ build(char *rompath)
 	/* rom */
 	if(!(dst = fopen(rompath, "wb")))
 		return !error_top("Invalid output file", rompath);
-	for(i = 0; i < label_len; i++)
-		if(labels[i].name[0] - 'A' > 25 && !labels[i].refs)
-			fprintf(stdout, "-- Unused label: %s\n", labels[i].name);
+	for(i = 0; i < items_len; i++)
+		if(items[i].type == LABEL && items[i].name[0] - 'A' > 25 && !items[i].refs)
+			fprintf(stdout, "-- Unused label: %s\n", items[i].name);
+		else if(items[i].type == MACRO && items[i].name[0] - 'A' > 25 && !items[i].refs)
+			fprintf(stdout, "-- Unused macro: %s\n", items[i].name);
 	fwrite(data + PAGE, length - PAGE, 1, dst);
 	fprintf(stdout,
 		"Assembled %s in %d bytes(%.2f%% used), %d labels, %d macros.\n",
 		rompath,
 		length - PAGE,
 		(length - PAGE) / 652.80,
-		label_len,
+		items_len,
 		macro_len);
 	/* sym */
 	sympath = dictnext, save(rompath, '.'), save("sym", 0);
 	if(!(dstsym = fopen(sympath, "w")))
 		return !error_top("Invalid symbols file", sympath);
-	for(i = 0; i < label_len; i++) {
-		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
+	for(i = 0; i < items_len; i++) {
+		Uint8 hb = items[i].addr >> 8, lb = items[i].addr;
 		fwrite(&hb, 1, 1, dstsym);
 		fwrite(&lb, 1, 1, dstsym);
-		fwrite(labels[i].name, slen(labels[i].name) + 1, 1, dstsym);
+		fwrite(items[i].name, slen(items[i].name) + 1, 1, dstsym);
 	}
 	fclose(dst), fclose(dstsym);
 	return 1;
