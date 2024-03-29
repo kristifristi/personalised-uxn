@@ -37,16 +37,16 @@ static char ops[][4] = {
 	"ADD", "SUB", "MUL", "DIV", "AND", "ORA", "EOR", "SFT"
 };
 
-static int   cndx(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c == t) return i; i++; } return -1; } /* chr in str */
-static int   sihx(char *s) { char c; while((c = *s++)) if(cndx(hexad, c) < 0) return 0; return 1; } /* str is hex */
-static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { n = n << 4, n |= cndx(hexad, c); } return n; } /* str to num */
+static int   find(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c == t) return i; i++; } return -1; } /* chr in str */
+static int   shex(char *s) { int n = 0; char c; while((c = *s++)) { if(find(hexad, c) < 0) return -1; n = n << 4, n |= find(hexad, c); } return n; } /* str to hex */
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; } /* str compare */
 static char *scpy(char *src, char *dst, int len) { int i = 0; while((dst[i] = src[i]) && i < len - 2) i++; dst[i + 1] = '\0'; return dst; } /* str copy */
 static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; } /* save to dict */
 static char *join(char *a, char j, char *b) { char *res = dictnext; save(a, j), save(b, 0); return res; } /* join two str */
 
-#define isopcode(x) (findopcode(x) || scmp(x, "BRK", 4))
-#define isinvalid(x) (!x[0] || sihx(x) || isopcode(x) || cndx(runes, x[0]) >= 0)
+#define ishex(x) (shex(x) >= 0)
+#define isopc(x) (findopcode(x) || scmp(x, "BRK", 4))
+#define isinvalid(x) (!x[0] || ishex(x) || isopc(x) || find(runes, x[0]) >= 0)
 #define writeshort(x) (writebyte(x >> 8, ctx) && writebyte(x & 0xff, ctx))
 #define findlabel(x) finditem(x, labels, labels_len)
 #define findmacro(x) finditem(x, macros, macro_len)
@@ -227,13 +227,12 @@ makeref(char *label, char rune, Uint16 addr)
 	return 1;
 }
 
-
 static int
 writepad(char *w)
 {
 	Item *l;
 	int rel = w[0] == '$' ? ptr : 0;
-	if(sihx(w + 1)) {
+	if(ishex(w + 1)) {
 		ptr = shex(w + 1) + rel;
 		return 1;
 	}
@@ -306,7 +305,7 @@ parse(char *w, FILE *f, Context *ctx)
 	case '@': return !makelabel(w + 1, 1, ctx) ? error_asm("Invalid label") : 1;
 	case '&': return !makelabel(w, 0, ctx) ? error_asm("Invalid sublabel") : 1;
 	case '}': return !makelabel(makelambda(lambda_stack[--lambda_ptr]), 0, ctx) ? error_asm("Invalid label") : 1;
-	case '#': return !sihx(w + 1) || !writehex(w, ctx) ? error_asm("Invalid hexadecimal") : 1;
+	case '#': return !ishex(w + 1) || !writehex(w, ctx) ? error_asm("Invalid hexadecimal") : 1;
 	case '_': return makeref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
 	case ',': return makeref(w + 1, w[0], ptr + 1) && writebyte(findopcode("LIT"), ctx) && writebyte(0xff, ctx);
 	case '-': return makeref(w + 1, w[0], ptr) && writebyte(0xff, ctx);
@@ -323,8 +322,8 @@ parse(char *w, FILE *f, Context *ctx)
 	case '[':
 	case ']': return 1;
 	}
-	if(sihx(w)) return writehex(w, ctx);
-	if(isopcode(w)) return writebyte(findopcode(w), ctx);
+	if(ishex(w)) return writehex(w, ctx);
+	if(isopc(w)) return writebyte(findopcode(w), ctx);
 	if((m = findmacro(w))) return walkmacro(m, ctx);
 	return makeref(w, ' ', ptr + 1) && writebyte(0x60, ctx) && writeshort(0xffff);
 }
