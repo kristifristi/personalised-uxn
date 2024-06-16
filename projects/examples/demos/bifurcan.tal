@@ -23,8 +23,8 @@
 	;on-mouse .Mouse/vector DEO2
 	;on-button .Controller/vector DEO2
 	( | find center )
-	.Screen/width DEI2 #01 SFT2 .center/x STZ2
-	.Screen/height DEI2 #01 SFT2 .center/y STZ2
+	.Screen/width DEI2 #01 SFT2 #33 SFT2 .center/x STZ2
+	.Screen/height DEI2 #01 SFT2 #33 SFT2 .center/y STZ2
 	( | background )
 	;tiles <cover-pattern>
 	<redraw>
