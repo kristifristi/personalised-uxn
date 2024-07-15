@@ -15,11 +15,13 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 Uint8
-datetime_dei(Uxn *u, Uint8 addr)
+datetime_dei(Uint8 addr)
 {
 	time_t seconds = time(NULL);
-	struct tm zt = {0}, *t = localtime(&seconds);
-	if(t == NULL) t = &zt;
+	struct tm zt = {0};
+	struct tm *t = localtime(&seconds);
+	if(t == NULL)
+		t = &zt;
 	switch(addr) {
 	case 0xc0: return (t->tm_year + 1900) >> 8;
 	case 0xc1: return (t->tm_year + 1900);
@@ -32,6 +34,6 @@ datetime_dei(Uxn *u, Uint8 addr)
 	case 0xc8: return t->tm_yday >> 8;
 	case 0xc9: return t->tm_yday;
 	case 0xca: return t->tm_isdst;
-	default: return u->dev[addr];
+	default: return uxn.dev[addr];
 	}
 }

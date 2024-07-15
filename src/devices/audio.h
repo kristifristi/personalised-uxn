@@ -11,8 +11,6 @@ WITH REGARD TO THIS SOFTWARE.
 
 typedef signed int Sint32;
 
-#define AUDIO_VERSION 1
-
 #define AUDIO_BUFSIZE 256.0f
 #define SAMPLE_FREQUENCY 44100.0f
 #define POLYPHONY 4

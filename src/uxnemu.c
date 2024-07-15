@@ -46,6 +46,8 @@ WITH REGARD TO THIS SOFTWARE.
 #define HEIGHT 40 * 8
 #define TIMEOUT_MS 334
 
+Uxn uxn, uxn_audio;
+
 static SDL_Window *emu_window;
 static SDL_Texture *emu_texture;
 static SDL_Renderer *emu_renderer;
@@ -60,10 +62,9 @@ static Uint32 stdin_event, audio0_event, zoom = 1;
 static Uint64 exec_deadline, deadline_interval, ms_interval;
 
 static int
-clamp(int v, int min, int max)
+clamp(int val, int min, int max)
 {
-	return v < min ? min : v > max ? max
-								   : v;
+	return (val >= min) ? (val <= max) ? val : max : min;
 }
 
 static void
@@ -79,39 +80,39 @@ audio_deo(int instance, Uint8 *d, Uint8 port, Uxn *u)
 }
 
 Uint8
-emu_dei(Uxn *u, Uint8 addr)
+emu_dei(Uint8 addr)
 {
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
 	switch(d) {
-	case 0x00: return system_dei(u, addr);
-	case 0x20: return screen_dei(u, addr);
-	case 0x30: return audio_dei(0, &u->dev[d], p);
-	case 0x40: return audio_dei(1, &u->dev[d], p);
-	case 0x50: return audio_dei(2, &u->dev[d], p);
-	case 0x60: return audio_dei(3, &u->dev[d], p);
-	case 0xc0: return datetime_dei(u, addr);
+	case 0x00: return system_dei(addr);
+	case 0x20: return screen_dei(addr);
+	case 0x30: return audio_dei(0, &uxn.dev[d], p);
+	case 0x40: return audio_dei(1, &uxn.dev[d], p);
+	case 0x50: return audio_dei(2, &uxn.dev[d], p);
+	case 0x60: return audio_dei(3, &uxn.dev[d], p);
+	case 0xc0: return datetime_dei(addr);
 	}
-	return u->dev[addr];
+	return uxn.dev[addr];
 }
 
 void
-emu_deo(Uxn *u, Uint8 addr, Uint8 value)
+emu_deo(Uint8 addr, Uint8 value)
 {
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
-	u->dev[addr] = value;
+	uxn.dev[addr] = value;
 	switch(d) {
 	case 0x00:
-		system_deo(u, &u->dev[d], p);
-		if(p > 0x7 && p < 0xe) screen_palette(&u->dev[0x8]);
+		system_deo(addr);
+		if(p > 0x7 && p < 0xe) screen_palette();
 		break;
-	case 0x10: console_deo(&u->dev[d], p); break;
-	case 0x20: screen_deo(u->ram, &u->dev[0x20], p); break;
-	case 0x30: audio_deo(0, &u->dev[d], p, u); break;
-	case 0x40: audio_deo(1, &u->dev[d], p, u); break;
-	case 0x50: audio_deo(2, &u->dev[d], p, u); break;
-	case 0x60: audio_deo(3, &u->dev[d], p, u); break;
-	case 0xa0: file_deo(0, u->ram, &u->dev[d], p); break;
-	case 0xb0: file_deo(1, u->ram, &u->dev[d], p); break;
+	case 0x10: console_deo(addr); break;
+	case 0x20: screen_deo(addr); break;
+	case 0x30: audio_deo(0, &uxn.dev[d], p, &uxn); break;
+	case 0x40: audio_deo(1, &uxn.dev[d], p, &uxn); break;
+	case 0x50: audio_deo(2, &uxn.dev[d], p, &uxn); break;
+	case 0x60: audio_deo(3, &uxn.dev[d], p, &uxn); break;
+	case 0xa0: file_deo(addr); break;
+	case 0xb0: file_deo(addr); break;
 	}
 }
 
@@ -177,11 +178,11 @@ set_borderless(int value)
 }
 
 static void
-set_debugger(Uxn *u, int value)
+set_debugger(int value)
 {
-	u->dev[0x0e] = value;
+	uxn.dev[0x0e] = value;
 	screen_fill(uxn_screen.fg, 0);
-	screen_redraw(u);
+	screen_redraw();
 }
 
 /* emulator primitives */
@@ -208,9 +209,9 @@ emu_resize(int width, int height)
 }
 
 static void
-emu_redraw(Uxn *u)
+emu_redraw(void)
 {
-	screen_redraw(u);
+	screen_redraw();
 	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.pixels, uxn_screen.width * sizeof(Uint32)) != 0)
 		system_error("SDL_UpdateTexture", SDL_GetError());
 	SDL_RenderClear(emu_renderer);
@@ -219,7 +220,7 @@ emu_redraw(Uxn *u)
 }
 
 static int
-emu_init(Uxn *u)
+emu_init(void)
 {
 	SDL_AudioSpec as;
 	SDL_zero(as);
@@ -228,7 +229,7 @@ emu_init(Uxn *u)
 	as.channels = 2;
 	as.callback = audio_handler;
 	as.samples = AUDIO_BUFSIZE;
-	as.userdata = u;
+	as.userdata = &uxn_audio;
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
 		return system_error("sdl", SDL_GetError());
 	audio_id = SDL_OpenAudioDevice(NULL, 0, &as, NULL, 0);
@@ -246,50 +247,19 @@ emu_init(Uxn *u)
 	ms_interval = SDL_GetPerformanceFrequency() / 1000;
 	deadline_interval = ms_interval * TIMEOUT_MS;
 	exec_deadline = SDL_GetPerformanceCounter() + deadline_interval;
-	screen_resize(WIDTH, HEIGHT);
+	screen_resize(WIDTH, HEIGHT, 1);
 	SDL_PauseAudioDevice(audio_id, 1);
 	return 1;
 }
 
 static void
-emu_restart(Uxn *u, char *rom, int soft)
+emu_restart(char *rom, int soft)
 {
-	screen_resize(WIDTH, HEIGHT);
+	screen_resize(WIDTH, HEIGHT, 1);
 	screen_fill(uxn_screen.bg, 0);
 	screen_fill(uxn_screen.fg, 0);
-	system_reboot(u, rom, soft);
+	system_reboot(rom, soft);
 	SDL_SetWindowTitle(emu_window, boot_rom);
-}
-
-static void
-capture_screen(void)
-{
-	const Uint32 format = SDL_PIXELFORMAT_RGB24;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	/* SDL_PIXELFORMAT_RGB24 */
-	Uint32 Rmask = 0x000000FF;
-	Uint32 Gmask = 0x0000FF00;
-	Uint32 Bmask = 0x00FF0000;
-#else
-	/* SDL_PIXELFORMAT_BGR24 */
-	Uint32 Rmask = 0x00FF0000;
-	Uint32 Gmask = 0x0000FF00;
-	Uint32 Bmask = 0x000000FF;
-#endif
-	time_t t = time(NULL);
-	char fname[64];
-	int w, h;
-	SDL_Surface *surface;
-	SDL_GetRendererOutputSize(emu_renderer, &w, &h);
-	if((surface = SDL_CreateRGBSurface(0, w, h, 24, Rmask, Gmask, Bmask, 0)) == NULL)
-		return;
-	SDL_RenderReadPixels(emu_renderer, NULL, format, surface->pixels, surface->pitch);
-	strftime(fname, sizeof(fname), "screenshot-%Y%m%d-%H%M%S.bmp", localtime(&t));
-	if(SDL_SaveBMP(surface, fname) == 0) {
-		fprintf(stderr, "Saved %s\n", fname);
-		fflush(stderr);
-	}
-	SDL_FreeSurface(surface);
 }
 
 static Uint8
@@ -341,7 +311,7 @@ get_key(SDL_Event *event)
 }
 
 static int
-handle_events(Uxn *u)
+handle_events(void)
 {
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
@@ -349,41 +319,41 @@ handle_events(Uxn *u)
 		if(event.type == SDL_QUIT)
 			return 0;
 		else if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_EXPOSED)
-			emu_redraw(u);
+			emu_redraw();
 		else if(event.type == SDL_DROPFILE) {
-			emu_restart(u, event.drop.file, 0);
+			emu_restart(event.drop.file, 0);
 			SDL_free(event.drop.file);
 		}
 		/* Mouse */
 		else if(event.type == SDL_MOUSEMOTION)
-			mouse_pos(u, &u->dev[0x90], clamp(event.motion.x - PAD, 0, uxn_screen.width - 1), clamp(event.motion.y - PAD, 0, uxn_screen.height - 1));
+			mouse_pos(clamp(event.motion.x - PAD, 0, uxn_screen.width - 1), clamp(event.motion.y - PAD, 0, uxn_screen.height - 1));
 		else if(event.type == SDL_MOUSEBUTTONUP)
-			mouse_up(u, &u->dev[0x90], SDL_BUTTON(event.button.button));
+			mouse_up(SDL_BUTTON(event.button.button));
 		else if(event.type == SDL_MOUSEBUTTONDOWN)
-			mouse_down(u, &u->dev[0x90], SDL_BUTTON(event.button.button));
+			mouse_down(SDL_BUTTON(event.button.button));
 		else if(event.type == SDL_MOUSEWHEEL)
-			mouse_scroll(u, &u->dev[0x90], event.wheel.x, event.wheel.y);
+			mouse_scroll(event.wheel.x, event.wheel.y);
 		/* Controller */
 		else if(event.type == SDL_TEXTINPUT) {
 			char *c;
 			for(c = event.text.text; *c; c++)
-				controller_key(u, &u->dev[0x80], *c);
+				controller_key(*c);
 		} else if(event.type == SDL_KEYDOWN) {
 			int ksym;
 			if(get_key(&event))
-				controller_key(u, &u->dev[0x80], get_key(&event));
+				controller_key(get_key(&event));
 			else if(get_button(&event))
-				controller_down(u, &u->dev[0x80], get_button(&event));
+				controller_down(get_button(&event));
 			else if(event.key.keysym.sym == SDLK_F1)
 				set_zoom(zoom == 3 ? 1 : zoom + 1, 1);
 			else if(event.key.keysym.sym == SDLK_F2)
-				set_debugger(u, !u->dev[0x0e]);
+				set_debugger(!uxn.dev[0x0e]);
 			else if(event.key.keysym.sym == SDLK_F3)
-				capture_screen();
+				uxn.dev[0x0f] = 0xff;
 			else if(event.key.keysym.sym == SDLK_F4)
-				emu_restart(u, boot_rom, 0);
+				emu_restart(boot_rom, 0);
 			else if(event.key.keysym.sym == SDLK_F5)
-				emu_restart(u, boot_rom, 1);
+				emu_restart(boot_rom, 1);
 			else if(event.key.keysym.sym == SDLK_F11)
 				set_fullscreen(!fullscreen, 1);
 			else if(event.key.keysym.sym == SDLK_F12)
@@ -392,44 +362,43 @@ handle_events(Uxn *u)
 			if(SDL_PeepEvents(&event, 1, SDL_PEEKEVENT, SDL_KEYUP, SDL_KEYUP) == 1 && ksym == event.key.keysym.sym)
 				return 1;
 		} else if(event.type == SDL_KEYUP)
-			controller_up(u, &u->dev[0x80], get_button(&event));
+			controller_up(get_button(&event));
 		else if(event.type == SDL_JOYAXISMOTION) {
 			Uint8 vec = get_vector_joystick(&event);
 			if(!vec)
-				controller_up(u, &u->dev[0x80], (3 << (!event.jaxis.axis * 2)) << 4);
+				controller_up((3 << (!event.jaxis.axis * 2)) << 4);
 			else
-				controller_down(u, &u->dev[0x80], (1 << ((vec + !event.jaxis.axis * 2) - 1)) << 4);
+				controller_down((1 << ((vec + !event.jaxis.axis * 2) - 1)) << 4);
 		} else if(event.type == SDL_JOYBUTTONDOWN)
-			controller_down(u, &u->dev[0x80], get_button_joystick(&event));
+			controller_down(get_button_joystick(&event));
 		else if(event.type == SDL_JOYBUTTONUP)
-			controller_up(u, &u->dev[0x80], get_button_joystick(&event));
+			controller_up(get_button_joystick(&event));
 		else if(event.type == SDL_JOYHATMOTION) {
 			/* NOTE: Assuming there is only one joyhat in the controller */
 			switch(event.jhat.value) {
-			case SDL_HAT_UP: controller_down(u, &u->dev[0x80], 0x10); break;
-			case SDL_HAT_DOWN: controller_down(u, &u->dev[0x80], 0x20); break;
-			case SDL_HAT_LEFT: controller_down(u, &u->dev[0x80], 0x40); break;
-			case SDL_HAT_RIGHT: controller_down(u, &u->dev[0x80], 0x80); break;
-			case SDL_HAT_LEFTDOWN: controller_down(u, &u->dev[0x80], 0x40 | 0x20); break;
-			case SDL_HAT_LEFTUP: controller_down(u, &u->dev[0x80], 0x40 | 0x10); break;
-			case SDL_HAT_RIGHTDOWN: controller_down(u, &u->dev[0x80], 0x80 | 0x20); break;
-			case SDL_HAT_RIGHTUP: controller_down(u, &u->dev[0x80], 0x80 | 0x10); break;
-			case SDL_HAT_CENTERED: controller_up(u, &u->dev[0x80], 0x10 | 0x20 | 0x40 | 0x80); break;
+			case SDL_HAT_UP: controller_down(0x10); break;
+			case SDL_HAT_DOWN: controller_down(0x20); break;
+			case SDL_HAT_LEFT: controller_down(0x40); break;
+			case SDL_HAT_RIGHT: controller_down(0x80); break;
+			case SDL_HAT_LEFTDOWN: controller_down(0x40 | 0x20); break;
+			case SDL_HAT_LEFTUP: controller_down(0x40 | 0x10); break;
+			case SDL_HAT_RIGHTDOWN: controller_down(0x80 | 0x20); break;
+			case SDL_HAT_RIGHTUP: controller_down(0x80 | 0x10); break;
+			case SDL_HAT_CENTERED: controller_up(0x10 | 0x20 | 0x40 | 0x80); break;
 			}
 		}
 		/* Console */
 		else if(event.type == stdin_event)
-			console_input(u, event.cbutton.button, CONSOLE_STD);
+			console_input(event.cbutton.button, CONSOLE_STD);
 	}
 	return 1;
 }
 
 static int
-emu_run(Uxn *u, char *rom)
+emu_run(char *rom)
 {
 	Uint64 next_refresh = 0;
 	Uint64 frame_interval = SDL_GetPerformanceFrequency() / 60;
-	Uint8 *vector_addr = &u->dev[0x20];
 	Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
 	window_created = 1;
 	if(fullscreen)
@@ -451,18 +420,18 @@ emu_run(Uxn *u, char *rom)
 		Uint16 screen_vector;
 		Uint64 now = SDL_GetPerformanceCounter();
 		/* .System/halt */
-		if(u->dev[0x0f])
+		if(uxn.dev[0x0f])
 			return system_error("Run", "Ended.");
 		exec_deadline = now + deadline_interval;
-		if(!handle_events(u))
+		if(!handle_events())
 			return 0;
-		screen_vector = PEEK2(vector_addr);
+		screen_vector = uxn.dev[0x20] << 8 | uxn.dev[0x21];
 		if(now >= next_refresh) {
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
-			uxn_eval(u, screen_vector);
+			uxn_eval(screen_vector);
 			if(uxn_screen.x2)
-				emu_redraw(u);
+				emu_redraw();
 		}
 		if(screen_vector || uxn_screen.x2) {
 			Uint64 delay_ms = (next_refresh - now) / ms_interval;
@@ -473,7 +442,7 @@ emu_run(Uxn *u, char *rom)
 }
 
 static int
-emu_end(Uxn *u)
+emu_end(void)
 {
 	SDL_CloseAudioDevice(audio_id);
 #ifdef _WIN32
@@ -483,21 +452,15 @@ emu_end(Uxn *u)
 	close(0); /* make stdin thread exit */
 #endif
 	SDL_Quit();
-	free(u->ram);
-	return u->dev[0x0f] & 0x7f;
+	free(uxn.ram);
+	return uxn.dev[0x0f] & 0x7f;
 }
 
 int
 main(int argc, char **argv)
 {
 	int i = 1;
-	Uint8 *ram;
 	char *rom;
-	Uxn u = {0};
-	Uint8 dev[0x100] = {0};
-	Uxn u_audio = {0};
-	u.dev = dev;
-	u_audio.dev = dev;
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
@@ -512,16 +475,15 @@ main(int argc, char **argv)
 	}
 	/* start */
 	rom = i == argc ? "boot.rom" : argv[i++];
-	ram = (Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8));
-	if(!system_init(&u, ram, rom) || !system_init(&u_audio, ram, rom))
+	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), rom))
 		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
-	if(!emu_init(&u_audio))
+	if(!emu_init())
 		return system_error("Init", "Failed to initialize varvara.");
 	/* loop */
-	u.dev[0x17] = argc - i;
-	if(uxn_eval(&u, PAGE_PROGRAM)) {
-		console_listen(&u, i, argc, argv);
-		emu_run(&u, boot_rom);
+	uxn.dev[0x17] = argc - i;
+	if(uxn_eval(PAGE_PROGRAM)) {
+		console_listen(i, argc, argv);
+		emu_run(boot_rom);
 	}
-	return emu_end(&u);
+	return emu_end();
 }

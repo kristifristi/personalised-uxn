@@ -96,10 +96,10 @@ uxnemu orca.rom | shim
 ## GUI Emulator Controls
 
 - `F1` toggle zoom
-- `F2` toggle debug
-- `F3` capture screen
+- `F2` toggle debugger
+- `F3` quit
 - `F4` reboot
-- `F5` soft reboot
+- `F5` reboot(soft)
 - `F11` toggle fullscreen
 - `F12` toggle decorations
 

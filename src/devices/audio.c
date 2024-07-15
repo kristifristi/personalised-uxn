@@ -250,10 +250,9 @@ audio_handler(void *ctx, Uint8 *out_stream, int len)
 		Uxn *u = (Uxn *)ctx;
 		Uint8 *addr = &u->dev[device];
 		if(channel[n].duration <= 0 && PEEK2(addr)) {
-			uxn_eval(u, PEEK2(addr));
+			uxn_eval(PEEK2(addr));
 		}
 		channel[n].duration -= SOUND_TIMER;
-
 		int x = 0;
 		if(channel[n].xfade) {
 			float delta = 1.0f / (XFADE_SAMPLES * 2);

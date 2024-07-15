@@ -5,7 +5,7 @@
 #include "console.h"
 
 /*
-Copyright (c) 2022-2023 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2022-2024 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -16,35 +16,29 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 int
-console_input(Uxn *u, char c, int type)
+console_input(Uint8 c, int type)
 {
-	Uint8 *d = &u->dev[0x10];
-	d[0x2] = c;
-	d[0x7] = type;
-	return uxn_eval(u, PEEK2(d));
+	uxn.dev[0x12] = c;
+	uxn.dev[0x17] = type;
+	return uxn_eval(PEEK2(&uxn.dev[0x10]));
 }
 
 void
-console_listen(Uxn *u, int i, int argc, char **argv)
+console_listen(int i, int argc, char **argv)
 {
 	for(; i < argc; i++) {
 		char *p = argv[i];
-		while(*p) console_input(u, *p++, CONSOLE_ARG);
-		console_input(u, '\n', i == argc - 1 ? CONSOLE_END : CONSOLE_EOA);
+		while(*p) console_input(*p++, CONSOLE_ARG);
+		console_input('\n', i == argc - 1 ? CONSOLE_END : CONSOLE_EOA);
 	}
 }
 
 void
-console_deo(Uint8 *d, Uint8 port)
+console_deo(Uint8 addr)
 {
-	switch(port) {
-	case 0x8:
-		fputc(d[port], stdout);
-		fflush(stdout);
-		return;
-	case 0x9:
-		fputc(d[port], stderr);
-		fflush(stderr);
-		return;
+	FILE *fd;
+	switch(addr) {
+	case 0x18: fd = stdout, fputc(uxn.dev[0x18], fd), fflush(fd); break;
+	case 0x19: fd = stderr, fputc(uxn.dev[0x19], fd), fflush(fd); break;
 	}
 }
