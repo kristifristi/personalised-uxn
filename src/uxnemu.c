@@ -46,7 +46,7 @@ WITH REGARD TO THIS SOFTWARE.
 #define HEIGHT 40 * 8
 #define TIMEOUT_MS 334
 
-Uxn uxn, uxn_audio;
+Uxn uxn;
 
 static SDL_Window *emu_window;
 static SDL_Texture *emu_texture;
@@ -229,7 +229,7 @@ emu_init(void)
 	as.channels = 2;
 	as.callback = audio_handler;
 	as.samples = AUDIO_BUFSIZE;
-	as.userdata = &uxn_audio;
+	as.userdata = &uxn;
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
 		return system_error("sdl", SDL_GetError());
 	audio_id = SDL_OpenAudioDevice(NULL, 0, &as, NULL, 0);
