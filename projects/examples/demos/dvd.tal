@@ -2,6 +2,7 @@
 
 |00 @System &vector $2 &wst $1 &rst $1 &eaddr $2 &ecode $1 &pad $1 &r $2 &g $2 &b $2 &debug $1 &halt $1
 |20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
+
 |000
 
 	@dvd &x $2 &y $2
@@ -39,7 +40,7 @@
 	( top ) ORAk ?{
 		[ LIT2 ADD2 _&y ] STR }
 	( bottom ) DUP2 [ LIT2 &hit-ver $2 ] NEQ2 ?{
-		[ LIT2 ADD2 _&y ] STR }
+		[ LIT2 SUB2 _&y ] STR }
 	#0001 [ &y ADD2 ] .dvd/y STZ2
 	#01 <draw-dvd>
 	BRK

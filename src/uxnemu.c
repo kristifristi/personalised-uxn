@@ -147,6 +147,7 @@ set_window_size(SDL_Window *window, int w, int h)
 	if(w == win_old.x && h == win_old.y) return;
 	SDL_RenderClear(emu_renderer);
 	SDL_SetWindowSize(window, w, h);
+	screen_resize(uxn_screen.width, uxn_screen.height, 1);
 }
 
 static void
@@ -430,10 +431,10 @@ emu_run(char *rom)
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
 			uxn_eval(screen_vector);
-			if(uxn_screen.x2)
+			if(screen_changed())
 				emu_redraw();
 		}
-		if(screen_vector || uxn_screen.x2) {
+		if(screen_vector) {
 			Uint64 delay_ms = (next_refresh - now) / ms_interval;
 			if(delay_ms > 0) SDL_Delay(delay_ms);
 		} else
