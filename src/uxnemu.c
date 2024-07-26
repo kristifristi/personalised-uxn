@@ -147,6 +147,7 @@ set_window_size(SDL_Window *window, int w, int h)
 	if(w == win_old.x && h == win_old.y) return;
 	SDL_RenderClear(emu_renderer);
 	SDL_SetWindowSize(window, w, h);
+	screen_change(0, 0, uxn_screen.width, uxn_screen.height);
 	screen_resize(uxn_screen.width, uxn_screen.height, 1);
 }
 
@@ -248,7 +249,7 @@ emu_init(void)
 	ms_interval = SDL_GetPerformanceFrequency() / 1000;
 	deadline_interval = ms_interval * TIMEOUT_MS;
 	exec_deadline = SDL_GetPerformanceCounter() + deadline_interval;
-	screen_resize(WIDTH, HEIGHT, 1);
+	screen_change(0, 0, WIDTH,HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
 	SDL_PauseAudioDevice(audio_id, 1);
 	return 1;
 }
@@ -256,7 +257,7 @@ emu_init(void)
 static void
 emu_restart(char *rom, int soft)
 {
-	screen_resize(WIDTH, HEIGHT, 1);
+	screen_change(0, 0, WIDTH,HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
 	screen_fill(uxn_screen.bg, 0);
 	screen_fill(uxn_screen.fg, 0);
 	system_reboot(rom, soft);
@@ -465,7 +466,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxnemu - Varvara Emulator(GUI)", "18 Mar 2024.");
+			return system_error("Uxnemu - Varvara Emulator(GUI)", "26 Jul 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
