@@ -6,8 +6,8 @@
 
 |000
 
-@color $1
-@circle [ &xc $2 &yc $2 &x $2 &y $2 &r $2 &d $2 ]
+	@color $1
+	@circle [ &xc $2 &yc $2 &x $2 &y $2 &r $2 &d $2 ]
 
 |100
 
@@ -16,7 +16,6 @@
 	#c2c2 DUP2 .System/r DEO2
 	DUP2 .System/g DEO2
 	.System/b DEO2
-
 	;on-mouse .Mouse/vector DEO2
 	BRK
 
@@ -25,8 +24,7 @@
 	POP2 <update-cursor>
 	.Mouse/state DEI ?{ BRK }
 	( | touch )
-	.Mouse/x DEI2 .Mouse/y DEI2 #0010 #01 draw-circle
-	
+	.Mouse/x DEI2 .Mouse/y DEI2 #0010 #01 <draw-circle>
 	BRK
 
 @<update-cursor> ( color addr* -- )
@@ -44,39 +42,67 @@
 	.Screen/sprite DEOk DEO
 	JMP2r
 
-%LTS2  { #8000 ADD2 SWP2 #8000 ADD2 GTH2 }
-%GTS2  { #8000 ADD2 SWP2 #8000 ADD2 LTH2 }
-
 @<draw-circle> ( xc* yc* r color -- )
-
-	( load ) .color STZ .circle/r STZ2 .circle/yc STZ2 .circle/xc STZ2
-	#0000 .circle/x STZ2 .circle/r LDZ2 .circle/y STZ2
+	( load ) .color STZ
+	.circle/r STZ2
+	.circle/yc STZ2
+	.circle/xc STZ2
+	#0000 .circle/x STZ2
+	.circle/r LDZ2 .circle/y STZ2
 	.circle/r LDZ2 #10 SFT2 .circle/d STZ2
-	( draw ) ;&seg JSR2
-	&loop
+	( draw ) <draw-seg>
+	&>loop ( -- )
 		( incr ) .circle/x LDZ2 INC2 .circle/x STZ2
-		.circle/d LDZ2 #0001 LTS2 ,&else JCN
+		.circle/d LDZ2 #0001 LTS2 ?{
 			( decr ) .circle/y LDZ2 #0001 SUB2 .circle/y STZ2
-			.circle/x LDZ2 .circle/y LDZ2 SUB2 #20 SFT2 .circle/d LDZ2 ADD2 .circle/d STZ2
-			;&end JMP2
-		&else
-			.circle/x LDZ2 #20 SFT2 .circle/d LDZ2 ADD2 .circle/d STZ2
-		&end
-		( draw ) ;&seg JSR2
-		.circle/y LDZ2 .circle/x LDZ2 #0001 SUB2 GTS2 ,&loop JCN
+			.circle/x LDZ2 .circle/y LDZ2 SUB2 #20 SFT2 .circle/d LDZ2 ADD2 .circle/d STZ2 !&end }
+		.circle/x LDZ2 #20 SFT2 .circle/d LDZ2 ADD2 .circle/d STZ2
+		&end ( draw )
+		<draw-seg>
+		.circle/y LDZ2 .circle/x LDZ2 #0001 SUB2 GTS2 ?&>loop
 	JMP2r
-	&seg
-		.circle/xc LDZ2 .circle/x LDZ2 ADD2 .Screen/x DEO2 .circle/yc LDZ2 .circle/y LDZ2 ADD2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/x LDZ2 SUB2 .Screen/x DEO2 .circle/yc LDZ2 .circle/y LDZ2 ADD2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/x LDZ2 ADD2 .Screen/x DEO2 .circle/yc LDZ2 .circle/y LDZ2 SUB2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/x LDZ2 SUB2 .Screen/x DEO2 .circle/yc LDZ2 .circle/y LDZ2 SUB2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/y LDZ2 ADD2 .Screen/x DEO2 .circle/yc LDZ2 .circle/x LDZ2 ADD2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/y LDZ2 SUB2 .Screen/x DEO2 .circle/yc LDZ2 .circle/x LDZ2 ADD2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/y LDZ2 ADD2 .Screen/x DEO2 .circle/yc LDZ2 .circle/x LDZ2 SUB2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
-		.circle/xc LDZ2 .circle/y LDZ2 SUB2 .Screen/x DEO2 .circle/yc LDZ2 .circle/x LDZ2 SUB2 .Screen/y DEO2 .color LDZ .Screen/pixel DEO
 
-JMP2r
+@LTS2 ( a* b* -- f )
+	#8000 ADD2 SWP2 #8000 ADD2 GTH2 JMP2r
 
+@GTS2 ( a* b* -- f )
+	#8000 ADD2 SWP2 #8000 ADD2 LTH2 JMP2r
+
+@<draw-seg> ( -- )
+	.color LDZ .Screen/pixel
+	( | .. )
+	.circle/xc LDZ2 .circle/x LDZ2 ADD2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/y LDZ2 ADD2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/x LDZ2 SUB2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/y LDZ2 ADD2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/x LDZ2 ADD2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/y LDZ2 SUB2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/x LDZ2 SUB2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/y LDZ2 SUB2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/y LDZ2 ADD2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/x LDZ2 ADD2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/y LDZ2 SUB2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/x LDZ2 ADD2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/y LDZ2 ADD2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/x LDZ2 SUB2 .Screen/y DEO2
+	DEOk
+	( | .. )
+	.circle/xc LDZ2 .circle/y LDZ2 SUB2 .Screen/x DEO2
+	.circle/yc LDZ2 .circle/x LDZ2 SUB2 .Screen/y DEO2
+	DEO
+	JMP2r
 
 @touch-chr [
 	0000 0000 0814 1417 0000 0000 0008 0808
