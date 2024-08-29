@@ -58,7 +58,7 @@ uxn_eval(Uint16 pc)
 		/* L2r */ case 0xe0: INC(rst) = uxn.ram[pc++];
 		/* LIr */ case 0xc0: INC(rst) = uxn.ram[pc++]; break;
 		/* INC */ OPC(0x01, POx(a), PUx(a + 1))
-		/* POP */ OPC(0x02, REM, 0)
+		/* POP */ OPC(0x02, REM, {})
 		/* NIP */ OPC(0x03, GET(x) REM,PUT(x))
 		/* SWP */ OPC(0x04, GET(x) GET(y),PUT(x) PUT(y))
 		/* ROT */ OPC(0x05, GET(x) GET(y) GET(z),PUT(y) PUT(x) PUT(z))
