@@ -41,7 +41,7 @@ static int   find(char *s, char t) { int i = 0; char c; while((c = *s++)) { if(c
 static int   shex(char *s) { int d, n = 0; char c; while((c = *s++)) { d = find(hexad, c); if(d < 0) return d; n = n << 4, n |= d; } return n; }
 static int   scmp(char *a, char *b, int len) { int i = 0; while(a[i] == b[i]) if(!a[i] || ++i >= len) return 1; return 0; }
 static char *copy(char *src, char *dst, char c) { while(*src && *src != c) *dst++ = *src++; *dst++ = 0; return dst; }
-static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s); *dictnext++ = c; return o; }
+static char *save(char *s, char c) { char *o = dictnext; while((*dictnext++ = *s++) && *s){}; *dictnext++ = c; return o; }
 static char *join(char *a, char j, char *b) { char *res = dictnext; save(a, j), save(b, 0); return res; }
 
 #define ishex(x) (shex(x) >= 0)
