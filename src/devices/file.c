@@ -9,17 +9,20 @@
 #include <unistd.h>
 
 #ifdef _WIN32
+#include <direct.h>
 #include <libiberty/libiberty.h>
 #define realpath(s, dummy) lrealpath(s)
 #define DIR_SEP_CHAR '\\'
 #define DIR_SEP_STR "\\"
 #define pathcmp(path1, path2, length) strncasecmp(path1, path2, length) /* strncasecmp provided by libiberty */
 #define notdriveroot(file_name) (file_name[0] != DIR_SEP_CHAR && ((strlen(file_name) > 2 && file_name[1] != ':') || strlen(file_name) <= 2))
+#define mkdir(file_name) (_mkdir(file_name) == 0)
 #else
 #define DIR_SEP_CHAR '/'
 #define DIR_SEP_STR "/"
 #define pathcmp(path1, path2, length) strncmp(path1, path2, length)
 #define notdriveroot(file_name) (file_name[0] != DIR_SEP_CHAR)
+#define mkdir(file_name) (mkdir(file_name, 0755) == 0)
 #endif
 
 #ifndef PATH_MAX
@@ -48,7 +51,9 @@ typedef struct {
 	enum { IDLE,
 		FILE_READ,
 		FILE_WRITE,
-		DIR_READ } state;
+		DIR_READ,
+		DIR_WRITE
+	} state;
 	int outside_sandbox;
 } UxnFile;
 
@@ -207,19 +212,57 @@ file_read(UxnFile *c, void *dest, int len)
 	return 0;
 }
 
+static int
+is_dir_path(char *p)
+{
+	char c;
+	int saw_slash = 0;
+	while (c = *p++)
+		saw_slash = c == DIR_SEP_CHAR;
+	return saw_slash;
+}
+
+int
+dir_exists(char *p)
+{
+	struct stat st;
+	return stat(p, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+int
+ensure_parent_dirs(char *p)
+{
+	int ok = 1;
+	char c, *s = p;
+	for(; ok && (c = *p); p++) {
+		if (c == DIR_SEP_CHAR) {
+			*p = '\0';
+			ok = dir_exists(s) || mkdir(s);
+			*p = c;
+		}
+	}
+	return ok;
+}
+
 static Uint16
 file_write(UxnFile *c, void *src, Uint16 len, Uint8 flags)
 {
 	Uint16 ret = 0;
 	if(c->outside_sandbox) return 0;
-	if(c->state != FILE_WRITE) {
+	ensure_parent_dirs(c->current_filename);
+	if(c->state != FILE_WRITE && c->state != DIR_WRITE) {
 		reset(c);
-		if((c->f = fopen(c->current_filename, (flags & 0x01) ? "ab" : "wb")) != NULL)
+		if (is_dir_path(c->current_filename))
+			c->state = DIR_WRITE;
+		else if((c->f = fopen(c->current_filename, (flags & 0x01) ? "ab" : "wb")) != NULL)
 			c->state = FILE_WRITE;
 	}
 	if(c->state == FILE_WRITE) {
 		if((ret = fwrite(src, 1, len, c->f)) > 0 && fflush(c->f) != 0)
 			ret = 0;
+	}
+	if (c->state == DIR_WRITE) {
+		ret = dir_exists(c->current_filename);
 	}
 	return ret;
 }
