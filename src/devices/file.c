@@ -268,15 +268,38 @@ file_write(UxnFile *c, void *src, Uint16 len, Uint8 flags)
 }
 
 static Uint16
+stat_fill(Uint8 *dest, Uint16 len, char c)
+{
+	Uint16 i;
+	for (i = 0; i < len; i++)
+		*(dest++) = c;
+	return len;
+}
+
+static Uint16
+stat_size(Uint8 *dest, Uint16 len, off_t size)
+{
+	Uint16 i;
+	dest += len - 1;
+	for (i = 0; i < len; i++) {
+		*(dest--) = '0' + (Uint8)(size & 0xf);
+		size = size >> 4;
+	}
+	return size == 0 ? len : stat_fill(dest, len, '?');
+}
+
+static Uint16
 file_stat(UxnFile *c, void *dest, Uint16 len)
 {
-	char *basename = strrchr(c->current_filename, DIR_SEP_CHAR);
-	if(c->outside_sandbox) return 0;
-	if(basename != NULL)
-		basename++;
+	struct stat st;
+	if(c->outside_sandbox)
+		return 0;
+	else if(stat(c->current_filename, &st))
+		return stat_fill(dest, len, '!');
+	else if(S_ISDIR(st.st_mode))
+		return stat_fill(dest, len, '-');
 	else
-		basename = c->current_filename;
-	return get_entry(dest, len, c->current_filename, basename, 0);
+		return stat_size(dest, len, st.st_size);
 }
 
 static Uint16
