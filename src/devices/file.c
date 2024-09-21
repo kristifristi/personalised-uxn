@@ -282,7 +282,9 @@ stat_size(Uint8 *dest, Uint16 len, off_t size)
 	Uint16 i;
 	dest += len - 1;
 	for (i = 0; i < len; i++) {
-		*(dest--) = '0' + (Uint8)(size & 0xf);
+		char c = '0' + (Uint8)(size & 0xf);
+		if (c > '9') c += 39;
+		*(dest--) = c;
 		size = size >> 4;
 	}
 	return size == 0 ? len : stat_fill(dest, len, '?');
