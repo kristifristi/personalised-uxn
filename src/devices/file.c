@@ -217,7 +217,7 @@ is_dir_path(char *p)
 {
 	char c;
 	int saw_slash = 0;
-	while (c = *p++)
+	while ((c = *p++))
 		saw_slash = c == DIR_SEP_CHAR;
 	return saw_slash;
 }

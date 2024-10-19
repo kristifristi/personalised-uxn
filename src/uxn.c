@@ -53,9 +53,9 @@ uxn_eval(Uint16 pc)
 		/* JCI */ case 0x20: if(DEC(wst)) { JMI break; } pc += 2; break;
 		/* JMI */ case 0x40: JMI break;
 		/* JSI */ case 0x60: c = pc + 2; INC(rst) = c >> 8; INC(rst) = c; JMI break;
-		/* LI2 */ case 0xa0: INC(wst) = uxn.ram[pc++];
+		/* LI2 */ case 0xa0: INC(wst) = uxn.ram[pc++]; /* fall through */
 		/* LIT */ case 0x80: INC(wst) = uxn.ram[pc++]; break;
-		/* L2r */ case 0xe0: INC(rst) = uxn.ram[pc++];
+		/* L2r */ case 0xe0: INC(rst) = uxn.ram[pc++]; /* fall through */
 		/* LIr */ case 0xc0: INC(rst) = uxn.ram[pc++]; break;
 		/* INC */ OPC(0x01, POx(a), PUx(a + 1))
 		/* POP */ OPC(0x02, REM, {})

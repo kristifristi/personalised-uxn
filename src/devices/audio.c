@@ -22,7 +22,7 @@ typedef enum EnvStage {
 	ENV_ATTACK = (1 << 0),
 	ENV_DECAY = (1 << 1),
 	ENV_SUSTAIN = (1 << 2),
-	ENV_RELEASE = (1 << 3),
+	ENV_RELEASE = (1 << 3)
 } EnvStage;
 
 typedef struct Envelope {
