@@ -18,6 +18,8 @@ WITH REGARD TO THIS SOFTWARE.
 
 #define PAGE_PROGRAM 0x0100
 
+#define STEP_LIMIT 0x100000
+
 typedef unsigned char Uint8;
 typedef signed char Sint8;
 typedef unsigned short Uint16;

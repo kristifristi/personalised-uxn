@@ -45,9 +45,9 @@ WITH REGARD TO THIS SOFTWARE.
 int
 uxn_eval(Uint16 pc)
 {
-	int a, b, c, x[2], y[2], z[2];
+	int step, a, b, c, x[2], y[2], z[2];
 	if(!pc || uxn.dev[0x0f]) return 0;
-	for(;;) {
+	for(step = 0; step < STEP_LIMIT; step++) {
 		switch(uxn.ram[pc++]) {
 		/* BRK */ case 0x00: return 1;
 		/* JCI */ case 0x20: if(DEC(wst)) { JMI break; } pc += 2; break;
@@ -90,4 +90,5 @@ uxn_eval(Uint16 pc)
 		/* SFT */ OPC(0x1f, PO1(a) POx(b),PUx(b >> (a & 0xf) << (a >> 4)))
 		}
 	}
+	return 0;
 }
