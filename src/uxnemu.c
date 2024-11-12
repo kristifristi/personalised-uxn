@@ -68,12 +68,12 @@ clamp(int val, int min, int max)
 }
 
 static void
-audio_deo(int instance, Uint8 *d, Uint8 port, Uxn *u)
+audio_deo(int instance, Uint8 *d, Uint8 port)
 {
 	if(!audio_id) return;
 	if(port == 0xf) {
 		SDL_LockAudioDevice(audio_id);
-		audio_start(instance, d, u);
+		audio_start(instance, d, &uxn);
 		SDL_UnlockAudioDevice(audio_id);
 		SDL_PauseAudioDevice(audio_id, 0);
 	}
@@ -107,10 +107,10 @@ emu_deo(Uint8 addr, Uint8 value)
 		break;
 	case 0x10: console_deo(addr); break;
 	case 0x20: screen_deo(addr); break;
-	case 0x30: audio_deo(0, &uxn.dev[d], p, &uxn); break;
-	case 0x40: audio_deo(1, &uxn.dev[d], p, &uxn); break;
-	case 0x50: audio_deo(2, &uxn.dev[d], p, &uxn); break;
-	case 0x60: audio_deo(3, &uxn.dev[d], p, &uxn); break;
+	case 0x30: audio_deo(0, &uxn.dev[d], p); break;
+	case 0x40: audio_deo(1, &uxn.dev[d], p); break;
+	case 0x50: audio_deo(2, &uxn.dev[d], p); break;
+	case 0x60: audio_deo(3, &uxn.dev[d], p); break;
 	case 0xa0: file_deo(addr); break;
 	case 0xb0: file_deo(addr); break;
 	}
