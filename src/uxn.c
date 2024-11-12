@@ -24,19 +24,19 @@ WITH REGARD TO THIS SOFTWARE.
 
 /* Microcode */
 
-#define JMI a = uxn.ram[pc ] << 8 | uxn.ram[pc + 1], pc += a + 2;
-#define JMP(i) if(_2) pc = i; else pc += (Sint8)i;
+#define JMI a = uxn.ram[pc] << 8 | uxn.ram[pc + 1], pc += a + 2;
 #define REM if(_r) uxn.rst.ptr -= 1 + _2; else uxn.wst.ptr -= 1 + _2;
 #define INC(s) uxn.s.dat[uxn.s.ptr++]
 #define DEC(s) uxn.s.dat[--uxn.s.ptr]
-#define POx(o) if(_2) { PO2(o) } else PO1(o)
-#define PO1(o) o = _r ? DEC(rst) : DEC(wst);
-#define PO2(o) PO1(o) o |= (_r ? DEC(rst) : DEC(wst)) << 8;
-#define PUx(i) if(_2) { c = (i); PU1(c >> 8) PU1(c) } else PU1(i)
-#define PU1(i) if(_r) INC(rst) = i; else INC(wst) = i;
-#define RP1(i) if(_r) INC(wst) = i; else INC(rst) = i;
-#define GET(o) if(_2) PO1(o[1]) PO1(o[0])
-#define PUT(i) PU1(i[0]) if(_2) { PU1(i[1]) }
+#define JMP(i) { if(_2) pc = i; else pc += (Sint8)i; }
+#define PO1(o) { o = _r ? DEC(rst) : DEC(wst); }
+#define PO2(o) { PO1(o) o |= (_r ? DEC(rst) : DEC(wst)) << 8; }
+#define POx(o) { if(_2) { PO2(o) } else PO1(o) }
+#define PU1(i) { if(_r) INC(rst) = i; else INC(wst) = i; }
+#define RP1(i) { if(_r) INC(wst) = i; else INC(rst) = i; }
+#define PUx(i) { if(_2) { c = (i); PU1(c >> 8) PU1(c) } else PU1(i) }
+#define GET(o) { if(_2) PO1(o[1]) PO1(o[0]) }
+#define PUT(i) { PU1(i[0]) if(_2) PU1(i[1]) }
 #define DEI(i,o) o[0] = emu_dei(i); if(_2) o[1] = emu_dei(i + 1); PUT(o)
 #define DEO(i,j) emu_deo(i, j[0]); if(_2) emu_deo(i + 1, j[1]);
 #define PEK(i,o,m) o[0] = uxn.ram[i]; if(_2) o[1] = uxn.ram[(i + 1) & m]; PUT(o)
@@ -45,17 +45,17 @@ WITH REGARD TO THIS SOFTWARE.
 int
 uxn_eval(Uint16 pc)
 {
-	int step, a, b, c, x[2], y[2], z[2];
+	unsigned int a, b, c, x[2], y[2], z[2], step;
 	if(!pc || uxn.dev[0x0f]) return 0;
-	for(step = 0; step < STEP_LIMIT; step++) {
+	for(step = STEP_MAX; step; step--) {
 		switch(uxn.ram[pc++]) {
 		/* BRK */ case 0x00: return 1;
 		/* JCI */ case 0x20: if(DEC(wst)) { JMI break; } pc += 2; break;
 		/* JMI */ case 0x40: JMI break;
 		/* JSI */ case 0x60: c = pc + 2; INC(rst) = c >> 8; INC(rst) = c; JMI break;
-		/* LI2 */ case 0xa0: INC(wst) = uxn.ram[pc++]; /* fall through */
+		/* LI2 */ case 0xa0: INC(wst) = uxn.ram[pc++]; /* fall-through */
 		/* LIT */ case 0x80: INC(wst) = uxn.ram[pc++]; break;
-		/* L2r */ case 0xe0: INC(rst) = uxn.ram[pc++]; /* fall through */
+		/* L2r */ case 0xe0: INC(rst) = uxn.ram[pc++]; /* fall-through */
 		/* LIr */ case 0xc0: INC(rst) = uxn.ram[pc++]; break;
 		/* INC */ OPC(0x01, POx(a), PUx(a + 1))
 		/* POP */ OPC(0x02, REM, {})
@@ -69,9 +69,9 @@ uxn_eval(Uint16 pc)
 		/* GTH */ OPC(0x0a, POx(a) POx(b),PU1(b > a))
 		/* LTH */ OPC(0x0b, POx(a) POx(b),PU1(b < a))
 		/* JMP */ OPC(0x0c, POx(a),JMP(a))
-		/* JCN */ OPC(0x0d, POx(a) PO1(b), if(b) { JMP(a) })
+		/* JCN */ OPC(0x0d, POx(a) PO1(b), if(b) JMP(a))
 		/* JSR */ OPC(0x0e, POx(a),RP1(pc >> 8) RP1(pc) JMP(a))
-		/* STH */ OPC(0x0f, GET(x),RP1(x[0]) if(_2) { RP1(x[1]) })
+		/* STH */ OPC(0x0f, GET(x),RP1(x[0]) if(_2) RP1(x[1]))
 		/* LDZ */ OPC(0x10, PO1(a),PEK(a, x, 0xff))
 		/* STZ */ OPC(0x11, PO1(a) GET(y),POK(a, y, 0xff))
 		/* LDR */ OPC(0x12, PO1(a),PEK(pc + (Sint8)a, x, 0xffff))

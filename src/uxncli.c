@@ -60,7 +60,7 @@ int
 main(int argc, char **argv)
 {
 	if(argc > 1 && argv[1][0] == '-' && argv[1][1] == 'v')
-		fprintf(stdout, "Uxncli - Varvara Emulator, 11 Nov 2024.\n");
+		fprintf(stdout, "Uxncli - Varvara Emulator, 12 Nov 2024.\n");
 	else if(argc == 1 || !system_boot(ram, argv[1]))
 		return !fprintf(stdout, "usage: %s [-v] file.rom [args..]\n", argv[0]);
 	else {

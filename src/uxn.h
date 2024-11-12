@@ -16,7 +16,7 @@ WITH REGARD TO THIS SOFTWARE.
 
 /* clang-format on */
 
-#define STEP_LIMIT 0x800000
+#define STEP_MAX 0x80000000
 #define PAGE_PROGRAM 0x0100
 
 typedef unsigned char Uint8;
