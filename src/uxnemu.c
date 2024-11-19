@@ -132,10 +132,16 @@ stdin_handler(void *p)
 	SDL_Event event;
 	USED(p);
 	event.type = stdin_event;
+	event.cbutton.state = CONSOLE_STD;
 	while(read(0, &event.cbutton.button, 1) > 0) {
 		while(SDL_PushEvent(&event) < 0)
 			SDL_Delay(25); /* slow down - the queue is most likely full */
 	}
+	/* EOF */
+	event.cbutton.button = 0x00;
+	event.cbutton.state = CONSOLE_END;
+	while(SDL_PushEvent(&event) < 0)
+		SDL_Delay(25);
 	return 0;
 }
 
@@ -391,7 +397,7 @@ handle_events(void)
 		}
 		/* Console */
 		else if(event.type == stdin_event)
-			console_input(event.cbutton.button, CONSOLE_STD);
+			console_input(event.cbutton.button, event.cbutton.state);
 	}
 	return 1;
 }
