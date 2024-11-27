@@ -19,54 +19,56 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 Uxn uxn;
-Uint8 ram[0x10000 * RAM_PAGES];
 
 Uint8
-emu_dei(Uint8 addr)
+emu_dei(Uxn *u, Uint8 addr)
 {
 	switch(addr & 0xf0) {
-	case 0x00: return system_dei(addr);
+	case 0x00: return system_dei(u, addr);
 	case 0xc0: return datetime_dei(addr);
 	}
 	return uxn.dev[addr];
 }
 
 void
-emu_deo(Uint8 addr, Uint8 value)
+emu_deo(Uxn *u, Uint8 addr, Uint8 value)
 {
 	uxn.dev[addr] = value;
 	switch(addr & 0xf0) {
-	case 0x00: system_deo(addr); break;
-	case 0x10: console_deo(addr); break;
+	case 0x00: system_deo(u, addr); break;
+	case 0x10: console_deo(u, addr); break;
 	case 0xa0: file_deo(addr); break;
 	case 0xb0: file_deo(addr); break;
-	}
-}
-
-static void
-emu_run(void)
-{
-	while(!uxn.dev[0x0f]) {
-		int c = fgetc(stdin);
-		if(c == EOF) {
-			console_input(0x00, CONSOLE_END);
-			break;
-		}
-		console_input(c, CONSOLE_STD);
 	}
 }
 
 int
 main(int argc, char **argv)
 {
-	if(argc > 1 && argv[1][0] == '-' && argv[1][1] == 'v')
-		fprintf(stdout, "Uxncli - Varvara Emulator, 12 Nov 2024.\n");
-	else if(argc == 1 || !system_boot(ram, argv[1]))
+	int i = 1;
+	if(argc == 2 && argv[1][0] == '-' && argv[1][1] == 'v')
+		return !fprintf(stdout, "Uxn11(cli) - Varvara Emulator, 27 Nov 2024.\n");
+	else if(argc == 1)
 		return !fprintf(stdout, "usage: %s [-v] file.rom [args..]\n", argv[0]);
-	else {
-		uxn.dev[0x17] = argc - 2;
-		if(uxn_eval(PAGE_PROGRAM) && PEEK2(uxn.dev + 0x10))
-			console_listen(2, argc, argv), emu_run();
+	else if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++]))
+		return !fprintf(stdout, "Could not load %s.\n", argv[i - 1]);
+	uxn.dev[0x17] = argc - 2;
+	if(uxn_eval(&uxn, PAGE_PROGRAM) && uxn.dev[0x10]) {
+		/* arguments input */
+		for(; i < argc; i++) {
+			char *p = argv[i];
+			while(*p) console_input(*p++, CONSOLE_ARG);
+			console_input('\n', i == argc - 1 ? CONSOLE_END : CONSOLE_EOA);
+		}
+		/* console input */
+		while(!uxn.dev[0x0f]) {
+			int c = fgetc(stdin);
+			if(c == EOF) {
+				console_input(0x00, CONSOLE_END);
+				break;
+			}
+			console_input(c, CONSOLE_STD);
+		}
 	}
 	return uxn.dev[0x0f] & 0x7f;
 }

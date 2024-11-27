@@ -80,12 +80,12 @@ audio_deo(int instance, Uint8 *d, Uint8 port)
 }
 
 Uint8
-emu_dei(Uint8 addr)
+emu_dei(Uxn *u, Uint8 addr)
 {
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
 	switch(d) {
-	case 0x00: return system_dei(addr);
-	case 0x20: return screen_dei(addr);
+	case 0x00: return system_dei(u, addr);
+	case 0x20: return screen_dei(u, addr);
 	case 0x30: return audio_dei(0, &uxn.dev[d], p);
 	case 0x40: return audio_dei(1, &uxn.dev[d], p);
 	case 0x50: return audio_dei(2, &uxn.dev[d], p);
@@ -96,17 +96,17 @@ emu_dei(Uint8 addr)
 }
 
 void
-emu_deo(Uint8 addr, Uint8 value)
+emu_deo(Uxn *u, Uint8 addr, Uint8 value)
 {
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
 	uxn.dev[addr] = value;
 	switch(d) {
 	case 0x00:
-		system_deo(addr);
+		system_deo(u, addr);
 		if(p > 0x7 && p < 0xe) screen_palette();
 		break;
-	case 0x10: console_deo(addr); break;
-	case 0x20: screen_deo(addr); break;
+	case 0x10: console_deo(u, addr); break;
+	case 0x20: screen_deo(u, addr); break;
 	case 0x30: audio_deo(0, &uxn.dev[d], p); break;
 	case 0x40: audio_deo(1, &uxn.dev[d], p); break;
 	case 0x50: audio_deo(2, &uxn.dev[d], p); break;
@@ -255,19 +255,19 @@ emu_init(void)
 	ms_interval = SDL_GetPerformanceFrequency() / 1000;
 	deadline_interval = ms_interval * TIMEOUT_MS;
 	exec_deadline = SDL_GetPerformanceCounter() + deadline_interval;
-	screen_change(0, 0, WIDTH,HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
+	screen_change(0, 0, WIDTH, HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
 	SDL_PauseAudioDevice(audio_id, 1);
 	return 1;
 }
 
 static void
-emu_restart(char *rom, int soft)
+emu_restart(char *drop, int soft)
 {
-	screen_change(0, 0, WIDTH,HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
+	screen_change(0, 0, WIDTH, HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
 	screen_fill(uxn_screen.bg, 0);
 	screen_fill(uxn_screen.fg, 0);
-	system_reboot(rom, soft);
-	SDL_SetWindowTitle(emu_window, boot_rom);
+	system_reboot(soft);
+	SDL_SetWindowTitle(emu_window, "Varvara");
 }
 
 static Uint8
@@ -359,9 +359,9 @@ handle_events(void)
 			else if(event.key.keysym.sym == SDLK_F3)
 				uxn.dev[0x0f] = 0xff;
 			else if(event.key.keysym.sym == SDLK_F4)
-				emu_restart(boot_rom, 0);
+				emu_restart(NULL, 0);
 			else if(event.key.keysym.sym == SDLK_F5)
-				emu_restart(boot_rom, 1);
+				emu_restart(NULL, 1);
 			else if(event.key.keysym.sym == SDLK_F11)
 				set_fullscreen(!fullscreen, 1);
 			else if(event.key.keysym.sym == SDLK_F12)
@@ -437,7 +437,7 @@ emu_run(char *rom)
 		if(now >= next_refresh) {
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
-			uxn_eval(screen_vector);
+			uxn_eval(&uxn, screen_vector);
 			if(screen_changed())
 				emu_redraw();
 		}
@@ -452,6 +452,7 @@ emu_run(char *rom)
 static int
 emu_end(void)
 {
+	int exitcode = uxn.dev[0x0f] & 0x7f;
 	SDL_CloseAudioDevice(audio_id);
 #ifdef _WIN32
 #pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
@@ -460,8 +461,8 @@ emu_end(void)
 	close(0); /* make stdin thread exit */
 #endif
 	SDL_Quit();
-	free(uxn.ram);
-	return uxn.dev[0x0f] & 0x7f;
+	free(bios.ram);
+	return exitcode;
 }
 
 int
@@ -472,7 +473,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxnemu - Varvara Emulator", "12 Nov 2024.");
+			return system_error("Uxnemu - Varvara Emulator", "27 Nov 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
@@ -483,15 +484,16 @@ main(int argc, char **argv)
 	}
 	/* start */
 	rom = i == argc ? "boot.rom" : argv[i++];
-	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), rom))
+	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom))
 		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	if(!emu_init())
 		return system_error("Init", "Failed to initialize varvara.");
 	/* loop */
 	uxn.dev[0x17] = argc - i;
-	if(uxn_eval(PAGE_PROGRAM)) {
+	if(uxn_eval(&uxn, PAGE_PROGRAM)) {
+		/* uxn_eval(&bios, PAGE_PROGRAM); */
 		console_listen(i, argc, argv);
-		emu_run(boot_rom);
+		emu_run(rom);
 	}
 	return emu_end();
 }

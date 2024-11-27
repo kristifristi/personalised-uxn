@@ -217,7 +217,7 @@ is_dir_path(char *p)
 {
 	char c;
 	int saw_slash = 0;
-	while ((c = *p++))
+	while((c = *p++))
 		saw_slash = c == DIR_SEP_CHAR;
 	return saw_slash;
 }
@@ -235,7 +235,7 @@ ensure_parent_dirs(char *p)
 	int ok = 1;
 	char c, *s = p;
 	for(; ok && (c = *p); p++) {
-		if (c == DIR_SEP_CHAR) {
+		if(c == DIR_SEP_CHAR) {
 			*p = '\0';
 			ok = dir_exists(s) || mkdir(s);
 			*p = c;
@@ -252,7 +252,7 @@ file_write(UxnFile *c, void *src, Uint16 len, Uint8 flags)
 	ensure_parent_dirs(c->current_filename);
 	if(c->state != FILE_WRITE && c->state != DIR_WRITE) {
 		reset(c);
-		if (is_dir_path(c->current_filename))
+		if(is_dir_path(c->current_filename))
 			c->state = DIR_WRITE;
 		else if((c->f = fopen(c->current_filename, (flags & 0x01) ? "ab" : "wb")) != NULL)
 			c->state = FILE_WRITE;
@@ -261,7 +261,7 @@ file_write(UxnFile *c, void *src, Uint16 len, Uint8 flags)
 		if((ret = fwrite(src, 1, len, c->f)) > 0 && fflush(c->f) != 0)
 			ret = 0;
 	}
-	if (c->state == DIR_WRITE) {
+	if(c->state == DIR_WRITE) {
 		ret = dir_exists(c->current_filename);
 	}
 	return ret;
@@ -271,7 +271,7 @@ static Uint16
 stat_fill(Uint8 *dest, Uint16 len, char c)
 {
 	Uint16 i;
-	for (i = 0; i < len; i++)
+	for(i = 0; i < len; i++)
 		*(dest++) = c;
 	return len;
 }
@@ -281,9 +281,9 @@ stat_size(Uint8 *dest, Uint16 len, off_t size)
 {
 	Uint16 i;
 	dest += len - 1;
-	for (i = 0; i < len; i++) {
+	for(i = 0; i < len; i++) {
 		char c = '0' + (Uint8)(size & 0xf);
-		if (c > '9') c += 39;
+		if(c > '9') c += 39;
 		*(dest--) = c;
 		size = size >> 4;
 	}
