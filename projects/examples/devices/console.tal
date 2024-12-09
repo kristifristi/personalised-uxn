@@ -14,22 +14,22 @@
 	;Dict/hello <print-str>
 	.Console/type DEI ?{
 		( | no arguments )
-		;on-stdin .Console/vector DEO2
+		;on-std .Console/vector DEO2
 		BRK }
-	;on-argument .Console/vector DEO2
+	;on-arg .Console/vector DEO2
 	BRK
 
-@on-argument ( -> )
+@on-arg ( -> )
 	[ LIT2 02 -Console/type ] DEI NEQ ?{
 		.Console/read DEI [ LIT2 00 &ptr -arg ] INCk ,&ptr STR
 		STZ2
 		BRK }
 	;arg ;Dict/yousent <print-result>
-	[ LIT2 04 -Console/type ] DEI NEQ ?{ ;on-stdin .Console/vector DEO2 }
+	[ LIT2 04 -Console/type ] DEI NEQ ?{ ;on-std .Console/vector DEO2 }
 	[ LIT2 -arg _&ptr ] STR
 	BRK
 
-@on-stdin ( -> )
+@on-std ( -> )
 	[ LIT2 0a -Console/read ] DEI EQU ?{
 		.Console/read DEI [ LIT2 00 &ptr -std ] INCk ,&ptr STR
 		STZ2
@@ -39,8 +39,9 @@
 	[ LIT2 -std _&ptr ] STR
 	BRK
 
-@quit ( buf* -> )
+@quit ( -> )
 	#800f DEO
+	#010e DEO
 	BRK
 
 @<print-result> ( buf* name* -- )
@@ -51,9 +52,6 @@
 	[ LIT2 00 -Console/type ] DEI DUP ADD ;Types ADD2 LDA2 <print-str>/
 	#0a18 DEO
 	JMP2r
-
-(
-@|stdlib )
 
 @<print-str> ( str* -- )
 	LDAk #18 DEO
