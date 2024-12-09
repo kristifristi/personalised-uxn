@@ -25,8 +25,8 @@
 		STZ2
 		BRK }
 	;arg ;Dict/yousent <print-result>
-	[ LIT2 04 -Console/type ] DEI NEQ ?{ ;on-std .Console/vector DEO2 }
 	[ LIT2 -arg _&ptr ] STR
+	[ LIT2 04 -Console/type ] DEI NEQ ?{ ;on-std .Console/vector DEO2 }
 	BRK
 
 @on-std ( -> )
@@ -35,13 +35,10 @@
 		STZ2
 		BRK }
 	;std DUP2 ;Dict/yousaid <print-result>
-	;Dict/quit scmp ?quit
-	[ LIT2 -std _&ptr ] STR
-	BRK
-
-@quit ( -> )
-	#800f DEO
-	#010e DEO
+	;Dict/quit scmp ?{
+		[ LIT2 -std _&ptr ] STR
+		BRK }
+	( quit ) #800f DEO
 	BRK
 
 @<print-result> ( buf* name* -- )
