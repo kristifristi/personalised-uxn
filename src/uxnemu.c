@@ -85,7 +85,7 @@ emu_dei(Uxn *u, Uint8 addr)
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
 	switch(d) {
 	case 0x00: return system_dei(u, addr);
-	case 0x20: return screen_dei(u, addr);
+	case 0x20: return screen_dei(addr);
 	case 0x30: return audio_dei(0, &uxn.dev[d], p);
 	case 0x40: return audio_dei(1, &uxn.dev[d], p);
 	case 0x50: return audio_dei(2, &uxn.dev[d], p);
@@ -106,7 +106,7 @@ emu_deo(Uxn *u, Uint8 addr, Uint8 value)
 		if(p > 0x7 && p < 0xe) screen_palette();
 		break;
 	case 0x10: console_deo(u, addr); break;
-	case 0x20: screen_deo(u, addr); break;
+	case 0x20: screen_deo(addr); break;
 	case 0x30: audio_deo(0, &uxn.dev[d], p); break;
 	case 0x40: audio_deo(1, &uxn.dev[d], p); break;
 	case 0x50: audio_deo(2, &uxn.dev[d], p); break;
@@ -153,7 +153,6 @@ set_window_size(SDL_Window *window, int w, int h)
 	if(w == win_old.x && h == win_old.y) return;
 	SDL_RenderClear(emu_renderer);
 	SDL_SetWindowSize(window, w, h);
-	screen_change(0, 0, uxn_screen.width, uxn_screen.height);
 	screen_resize(uxn_screen.width, uxn_screen.height, 1);
 }
 
@@ -255,15 +254,15 @@ emu_init(void)
 	ms_interval = SDL_GetPerformanceFrequency() / 1000;
 	deadline_interval = ms_interval * TIMEOUT_MS;
 	exec_deadline = SDL_GetPerformanceCounter() + deadline_interval;
-	screen_change(0, 0, WIDTH, HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
 	SDL_PauseAudioDevice(audio_id, 1);
+	screen_resize(WIDTH, HEIGHT, 1);
 	return 1;
 }
 
 static void
 emu_restart(char *drop, int soft)
 {
-	screen_change(0, 0, WIDTH, HEIGHT), screen_resize(WIDTH, HEIGHT, 1);
+	screen_resize(WIDTH, HEIGHT, uxn_screen.scale);
 	screen_fill(uxn_screen.bg, 0);
 	screen_fill(uxn_screen.fg, 0);
 	system_reboot(soft);
@@ -473,7 +472,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "27 Nov 2024.");
+			return system_error("Uxn(gui) - Varvara Emulator", "23 Dec 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
@@ -491,7 +490,6 @@ main(int argc, char **argv)
 	/* loop */
 	uxn.dev[0x17] = argc - i;
 	if(uxn_eval(&uxn, PAGE_PROGRAM)) {
-		/* uxn_eval(&bios, PAGE_PROGRAM); */
 		console_listen(i, argc, argv);
 		emu_run(rom);
 	}

@@ -119,23 +119,22 @@ screen_resize(Uint16 width, Uint16 height, int scale)
 void
 screen_redraw(void)
 {
-	int i, x, y, k, l, s = uxn_screen.scale;
-	Uint8 *fg = uxn_screen.fg, *bg = uxn_screen.bg;
-	Uint16 w = uxn_screen.width, h = uxn_screen.height;
-	Uint16 x1 = uxn_screen.x1, y1 = uxn_screen.y1;
-	Uint16 x2 = uxn_screen.x2 > w ? w : uxn_screen.x2, y2 = uxn_screen.y2 > h ? h : uxn_screen.y2;
+	int i, x, y, k, l;
+	int x1 = uxn_screen.x1 < 0 ? 0 : uxn_screen.x1, y1 = uxn_screen.y1 < 0 ? 0 : uxn_screen.y1;
+	int x2 = uxn_screen.x2 > uxn_screen.width ? uxn_screen.width : uxn_screen.x2;
+	int y2 = uxn_screen.y2 > uxn_screen.height ? uxn_screen.height : uxn_screen.y2;
 	Uint32 palette[16], *pixels = uxn_screen.pixels;
 	uxn_screen.x1 = uxn_screen.y1 = 9000;
 	uxn_screen.x2 = uxn_screen.y2 = 0;
 	for(i = 0; i < 16; i++)
 		palette[i] = uxn_screen.palette[(i >> 2) ? (i >> 2) : (i & 3)];
 	for(y = y1; y < y2; y++) {
-		int ys = y * s;
-		for(x = x1, i = MAR(x) + MAR(y) * MAR2(w); x < x2; x++, i++) {
-			int c = palette[fg[i] << 2 | bg[i]];
-			for(k = 0; k < s; k++) {
-				int oo = ((ys + k) * w + x) * s;
-				for(l = 0; l < s; l++)
+		int ys = y * uxn_screen.scale;
+		for(x = x1, i = MAR(x) + MAR(y) * MAR2(uxn_screen.width); x < x2; x++, i++) {
+			int c = palette[uxn_screen.fg[i] << 2 | uxn_screen.bg[i]];
+			for(k = 0; k < uxn_screen.scale; k++) {
+				int oo = ((ys + k) * uxn_screen.width + x) * uxn_screen.scale;
+				for(l = 0; l < uxn_screen.scale; l++)
 					pixels[oo + l] = c;
 			}
 		}
@@ -147,7 +146,7 @@ screen_redraw(void)
 static int rX, rY, rA, rMX, rMY, rMA, rML, rDX, rDY;
 
 Uint8
-screen_dei(Uxn *u, Uint8 addr)
+screen_dei(Uint8 addr)
 {
 	switch(addr) {
 	case 0x22: return uxn_screen.width >> 8;
@@ -160,25 +159,25 @@ screen_dei(Uxn *u, Uint8 addr)
 	case 0x2b: return rY;
 	case 0x2c: return rA >> 8;
 	case 0x2d: return rA;
-	default: return u->dev[addr];
+	default: return uxn.dev[addr];
 	}
 }
 
 void
-screen_deo(Uxn *u, Uint8 addr)
+screen_deo(Uint8 addr)
 {
 	switch(addr) {
 	case 0x23: screen_resize(PEEK2(&uxn.dev[0x22]), uxn_screen.height, uxn_screen.scale); return;
 	case 0x25: screen_resize(uxn_screen.width, PEEK2(&uxn.dev[0x24]), uxn_screen.scale); return;
-	case 0x26: rMX = u->dev[0x26] & 0x1, rMY = u->dev[0x26] & 0x2, rMA = u->dev[0x26] & 0x4, rML = u->dev[0x26] >> 4, rDX = rMX << 3, rDY = rMY << 2; return;
+	case 0x26: rMX = uxn.dev[0x26] & 0x1, rMY = uxn.dev[0x26] & 0x2, rMA = uxn.dev[0x26] & 0x4, rML = uxn.dev[0x26] >> 4, rDX = rMX << 3, rDY = rMY << 2; return;
 	case 0x28:
-	case 0x29: rX = (u->dev[0x28] << 8) | u->dev[0x29], rX = twos(rX); return;
+	case 0x29: rX = (uxn.dev[0x28] << 8) | uxn.dev[0x29], rX = twos(rX); return;
 	case 0x2a:
-	case 0x2b: rY = (u->dev[0x2a] << 8) | u->dev[0x2b], rY = twos(rY); return;
+	case 0x2b: rY = (uxn.dev[0x2a] << 8) | uxn.dev[0x2b], rY = twos(rY); return;
 	case 0x2c:
-	case 0x2d: rA = (u->dev[0x2c] << 8) | u->dev[0x2d]; return;
+	case 0x2d: rA = (uxn.dev[0x2c] << 8) | uxn.dev[0x2d]; return;
 	case 0x2e: {
-		int ctrl = u->dev[0x2e];
+		int ctrl = uxn.dev[0x2e];
 		int color = ctrl & 0x3;
 		int len = MAR2(uxn_screen.width);
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
@@ -210,24 +209,25 @@ screen_deo(Uxn *u, Uint8 addr)
 		return;
 	}
 	case 0x2f: {
-		int i;
-		int ctrl = u->dev[0x2f];
+		int ctrl = uxn.dev[0x2f];
 		int twobpp = !!(ctrl & 0x80);
 		int blend = ctrl & 0xf;
 		int fx = ctrl & 0x10 ? -1 : 1, fy = ctrl & 0x20 ? -1 : 1;
-		int x1, x2, y1, y2, ax, ay, qx, qy, x = rX, y = rY;
+		int i, x1, x2, y1, y2, ax, ay, qx, qy, x = rX, y = rY;
 		int dxy = rDX * fy, dyx = rDY * fx, addr_incr = rMA << (1 + twobpp);
-		int len = MAR2(uxn_screen.width);
+		int wmar = MAR(uxn_screen.width), wmar2 = MAR2(uxn_screen.width);
+		int hmar2 = MAR2(uxn_screen.height);
 		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
 		if(twobpp)
 			for(i = 0; i <= rML; i++, x += dyx, y += dxy, rA += addr_incr) {
-				Uint16 xx = MAR(x), yy = MAR(y);
-				if(xx < MAR(uxn_screen.width) && MAR(yy) < MAR2(uxn_screen.height)) {
-					Uint8 *sprite = &u->ram[rA];
-					int opaque = blend % 5, by = (yy + 8) * len;
-					for(ay = yy * len, qy = fy < 0 ? 7 : 0; ay < by; ay += len, qy += fy) {
-						int ch1 = sprite[qy], ch2 = sprite[qy + 8] << 1, bx = xx + 8 + ay;
-						for(ax = xx + ay, qx = fx > 0 ? 7 : 0; ax < bx; ax++, qx -= fx) {
+				Uint16 xmar = MAR(x), ymar = MAR(y);
+				Uint16 xmar2 = MAR2(x), ymar2 = MAR2(y);
+				if(xmar < wmar && ymar2 < hmar2) {
+					Uint8 *sprite = &uxn.ram[rA];
+					int opaque = blend % 5, by = ymar2 * wmar2;
+					for(ay = ymar * wmar2, qy = fy < 0 ? 7 : 0; ay < by; ay += wmar2, qy += fy) {
+						int ch1 = sprite[qy], ch2 = sprite[qy + 8] << 1, bx = xmar2 + ay;
+						for(ax = xmar + ay, qx = fx > 0 ? 7 : 0; ax < bx; ax++, qx -= fx) {
 							int color = ((ch1 >> qx) & 1) | ((ch2 >> qx) & 2);
 							if(opaque || color) layer[ax] = blending[color][blend];
 						}
@@ -236,13 +236,14 @@ screen_deo(Uxn *u, Uint8 addr)
 			}
 		else
 			for(i = 0; i <= rML; i++, x += dyx, y += dxy, rA += addr_incr) {
-				Uint16 xx = MAR(x), yy = MAR(y);
-				if(xx < MAR(uxn_screen.width) && MAR(yy) < MAR2(uxn_screen.height)) {
-					Uint8 *sprite = &u->ram[rA];
-					int opaque = blend % 5, by = (yy + 8) * len;
-					for(ay = yy * len, qy = fy < 0 ? 7 : 0; ay < by; ay += len, qy += fy) {
-						int ch1 = sprite[qy], bx = xx + 8 + ay;
-						for(ax = xx + ay, qx = fx > 0 ? 7 : 0; ax < bx; ax++, qx -= fx) {
+				Uint16 xmar = MAR(x), ymar = MAR(y);
+				Uint16 xmar2 = MAR2(x), ymar2 = MAR2(y);
+				if(xmar < wmar && ymar2 < hmar2) {
+					Uint8 *sprite = &uxn.ram[rA];
+					int opaque = blend % 5, by = ymar2 * wmar2;
+					for(ay = ymar * wmar2, qy = fy < 0 ? 7 : 0; ay < by; ay += wmar2, qy += fy) {
+						int ch1 = sprite[qy], bx = xmar2 + ay;
+						for(ax = xmar + ay, qx = fx > 0 ? 7 : 0; ax < bx; ax++, qx -= fx) {
 							int color = (ch1 >> qx) & 1;
 							if(opaque || color) layer[ax] = blending[color][blend];
 						}
@@ -257,7 +258,7 @@ screen_deo(Uxn *u, Uint8 addr)
 			y1 = y, y2 = rY;
 		else
 			y1 = rY, y2 = y;
-		screen_change(x1, y1, x2 + 8, y2 + 8);
+		screen_change(x1 - 8, y1 - 8, x2 + 8, y2 + 8);
 		if(rMX) rX += rDX * fx;
 		if(rMY) rY += rDY * fy;
 		return;
