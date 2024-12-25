@@ -424,7 +424,6 @@ emu_run(char *rom)
 	emu_resize(uxn_screen.width, uxn_screen.height);
 	/* game loop */
 	for(;;) {
-		Uint16 screen_vector;
 		Uint64 now = SDL_GetPerformanceCounter();
 		/* .System/halt */
 		if(uxn.dev[0x0f])
@@ -432,15 +431,14 @@ emu_run(char *rom)
 		exec_deadline = now + deadline_interval;
 		if(!handle_events())
 			return 0;
-		screen_vector = uxn.dev[0x20] << 8 | uxn.dev[0x21];
 		if(now >= next_refresh) {
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
-			uxn_eval(&uxn, screen_vector);
+			uxn_eval(&uxn, uxn_screen.vector);
 			if(screen_changed())
 				emu_redraw();
 		}
-		if(screen_vector) {
+		if(uxn_screen.vector) {
 			Uint64 delay_ms = (next_refresh - now) / ms_interval;
 			if(delay_ms > 0) SDL_Delay(delay_ms);
 		} else
@@ -472,7 +470,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "23 Dec 2024.");
+			return system_error("Uxn(gui) - Varvara Emulator", "25 Dec 2024.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))

@@ -10,7 +10,7 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 typedef struct UxnScreen {
-	int width, height, x1, y1, x2, y2, scale;
+	int width, height, vector, x1, y1, x2, y2, scale;
 	Uint32 palette[4], *pixels;
 	Uint8 *fg, *bg;
 } UxnScreen;
