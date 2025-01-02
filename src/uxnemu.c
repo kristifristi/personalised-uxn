@@ -470,7 +470,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "25 Dec 2024.");
+			return system_error("Uxn(gui) - Varvara Emulator", "1 Jan 2025.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
@@ -486,7 +486,7 @@ main(int argc, char **argv)
 	if(!emu_init())
 		return system_error("Init", "Failed to initialize varvara.");
 	/* loop */
-	uxn.dev[0x17] = argc - i;
+	uxn.dev[0x17] = argc > i;
 	if(uxn_eval(&uxn, PAGE_PROGRAM)) {
 		console_listen(i, argc, argv);
 		emu_run(rom);
