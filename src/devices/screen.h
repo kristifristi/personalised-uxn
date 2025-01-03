@@ -22,7 +22,7 @@ void screen_change(int x1, int y1, int x2, int y2);
 void screen_fill(Uint8 *layer, int color);
 void screen_palette(void);
 void screen_resize(Uint16 width, Uint16 height, int scale);
-void screen_redraw();
+void screen_redraw(void);
 
 Uint8 screen_dei(Uint8 addr);
 void screen_deo(Uint8 addr);
