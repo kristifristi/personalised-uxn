@@ -30,7 +30,7 @@ WITH REGARD TO THIS SOFTWARE.
 #define DEC(s) u->s.dat[--u->s.ptr]
 #define JMP(i) pc = _2 ? i : pc + (Sint8)i;
 #define PO1(o) o = _r ? DEC(rst) : DEC(wst);
-#define PO2(o) o = _r ? DEC(rst) | DEC(rst) << 8 : DEC(wst) | DEC(wst) << 8;
+#define PO2(o) { if(_r) o = DEC(rst), o |= DEC(rst) << 8; else o = DEC(wst), o |= DEC(wst) << 8; }
 #define POx(o) { if(_2) PO2(o) else PO1(o) }
 #define PU1(i) { if(_r) INC(rst) = i; else INC(wst) = i; }
 #define RP1(i) { if(_r) INC(wst) = i; else INC(rst) = i; }
