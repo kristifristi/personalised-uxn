@@ -17,7 +17,7 @@
 	#0058 DUP2 .Screen/width DEO2
 	.Screen/height DEO2
 	;on-mouse .Mouse/vector DEO2
-	;button-chr <draw-button>
+	button/<redraw>
 	BRK
 
 @meta $1
@@ -26,32 +26,43 @@
 	( auth ) "By 20 "Devine 20 "Lu 20 "Linvega 0a
 	( date ) "15 20 "Jan 20 "2025 $2
 
+@on-mouse ( -> )
+	update-focus BRK
+
 @on-frame ( -> )
+	BRK
 	[ LIT2 18 &time $1 ] INCk ,&time STR
 	EQU ?{ BRK }
 	#0000 .Screen/vector DEO2
-	;button-chr/up <draw-button>
+	;button-chr/up button/<draw>
 	[ LIT2 "! 18 ] DEO
 	BRK
-
-@on-mouse ( -> )
-	<draw-cursor-touch>
-	.Mouse/state DEI ?{ BRK }
-	.Mouse/x DEI2 .Mouse/y DEI2 within-button ?{ BRK }
-	;button-chr/down <draw-button>
-	;on-frame .Screen/vector DEO2
-	#10 ;on-frame/time STA
-	BRK
-
-@within-button ( x* y* -- f )
-	#0020 SUB2 #0018 LTH2 STH
-	#0020 SUB2 #0018 LTH2 STHr AND JMP2r
 
 (
 @|drawing )
 
+@update-focus ( -- )
+	<draw-cursor-touch>
+	.Mouse/x DEI2 .Mouse/y DEI2 button/is-within ?{ ;on-mouse !<set-focus> }
+	;button/on-mouse !<set-focus>
 
-@<draw-button> ( addr* -- )
+@<set-focus> ( vector* -- )
+	DUP2 [ LIT2 &last $2 ] NEQ2 ?{ POP2 JMP2r }
+	DUP2 .Mouse/vector DEO2
+	,&last STR2 !button/<redraw>
+
+@button/is-within ( x* y* -- f )
+	#0020 SUB2 #0018 LTH2 STH
+	#0020 SUB2 #0018 LTH2 STHr AND JMP2r
+
+@button/<redraw> ( -- )
+	.Mouse/vector DEI2 ;button/on-mouse EQU2 ?{ ;button-chr/up !button/<draw> }
+	;button-chr/hover !button/<draw>
+
+@button/on-mouse ( -> )
+	update-focus BRK
+
+@button/<draw> ( addr* -- )
 	[ LIT2 26 -Screen/auto ] DEO
 	#0020 DUP2 .Screen/x DEO2
 	.Screen/y DEO2
@@ -73,6 +84,14 @@
 	[ LIT2 &x $2 ] .Screen/x DEO2
 	[ LIT2 &y $2 ] .Screen/y DEO2
 	.Screen/sprite DEOk DEO
+	JMP2r
+
+@<phex> ( short* -: )
+	SWP /b
+	&b ( byte -: )
+	DUP #04 SFT /c
+	&c ( byte -: )
+	#0f AND DUP #09 GTH #27 MUL ADD [ LIT "0 ] ADD #18 DEO
 	JMP2r
 
 (
