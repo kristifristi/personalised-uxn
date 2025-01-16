@@ -1,22 +1,33 @@
+( a simple button )
+
 |00 @System &vector $2 &expansion $2 &wst $1 &rst $1 &metadata $2 &r $2 &g $2 &b $2 &debug $1 &state $1
 |20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
 |80 @Controller &vector $2 &button $1 &key $1
 |90 @Mouse &vector $2 &x $2 &y $2 &state $1 &chord $1 &pad $4 &scrolly &scrolly-hb $1 &scrolly-lb $1
 
-|0100
+|100
 
 @on-reset ( -> )
-	#5c0f .System/r DEO2
-	#6d0f .System/g DEO2
-	#6d0f .System/b DEO2
-	#0038 DUP2 .Screen/width DEO2
+	;meta #06 DEO2
+	( | theme )
+	#5c0f DUP2 .System/r DEO2
+	DUP2 .System/g DEO2
+	.System/b DEO2
+	( | size )
+	#0058 DUP2 .Screen/width DEO2
 	.Screen/height DEO2
 	;on-mouse .Mouse/vector DEO2
 	;button-chr <draw-button>
 	BRK
 
+@meta $1
+	( name ) "Button 0a
+	( desc ) "A 20 "Simple 20 "Button 0a
+	( auth ) "By 20 "Devine 20 "Lu 20 "Linvega 0a
+	( date ) "15 20 "Jan 20 "2025 $2
+
 @on-frame ( -> )
-	[ LIT2 18 &time 00 ] INCk ,&time STR
+	[ LIT2 18 &time $1 ] INCk ,&time STR
 	EQU ?{ BRK }
 	#0000 .Screen/vector DEO2
 	;button-chr/up <draw-button>
@@ -24,53 +35,65 @@
 	BRK
 
 @on-mouse ( -> )
-	[ LIT2 00 -Mouse/state ] DEI NEQ #42 ADD ;pointer-icn <update-pointer>
+	<draw-cursor-touch>
 	.Mouse/state DEI ?{ BRK }
 	.Mouse/x DEI2 .Mouse/y DEI2 within-button ?{ BRK }
 	;button-chr/down <draw-button>
 	;on-frame .Screen/vector DEO2
 	#10 ;on-frame/time STA
-	[ LIT2 00 -Mouse/state ] DEO
 	BRK
 
 @within-button ( x* y* -- f )
-	#0010 SUB2 #0018 LTH2 STH
-	#0010 SUB2 #0018 LTH2 STHr AND JMP2r
+	#0020 SUB2 #0018 LTH2 STH
+	#0020 SUB2 #0018 LTH2 STHr AND JMP2r
 
 (
 @|drawing )
 
+
 @<draw-button> ( addr* -- )
 	[ LIT2 26 -Screen/auto ] DEO
-	#0010 DUP2 .Screen/x DEO2
+	#0020 DUP2 .Screen/x DEO2
 	.Screen/y DEO2
 	.Screen/addr DEO2
 	[ LIT2 81 -Screen/sprite ] DEOk DEOk DEO
 	JMP2r
 
-@<update-pointer> ( color addr* -- )
-	[ LIT2 00 -Screen/auto ] DEO
+@<draw-cursor-touch> ( -- )
+	#c5 ;touch-chr .Mouse/state DEI ?{ #0040 ADD2 }
 	;fill-icn .Screen/addr DEO2
-	#40 <draw-pointer>
-	.Mouse/x DEI2 ,<draw-pointer>/x STR2
-	.Mouse/y DEI2 ,<draw-pointer>/y STR2
+	#40 <draw-cursor>
 	.Screen/addr DEO2
+	.Mouse/x DEI2 #0004 SUB2 ,<draw-cursor>/x STR2
+	.Mouse/y DEI2 #0005 SUB2 ,<draw-cursor>/y STR2
+	( >> )
 
-@<draw-pointer> ( color -- )
+@<draw-cursor> ( color -- )
+	[ LIT2 16 -Screen/auto ] DEO
 	[ LIT2 &x $2 ] .Screen/x DEO2
 	[ LIT2 &y $2 ] .Screen/y DEO2
-	.Screen/sprite DEO
+	.Screen/sprite DEOk DEO
 	JMP2r
 
 (
 @|assets )
 
-@fill-icn [ ffff ffff ffff ffff ]
+@fill-icn [
+	ffff ffff ffff ffff ffff ffff ffff ffff
+	ffff ffff ffff ffff ffff ffff ffff ffff ]
 
-@pointer-icn [ 80c0 e0f0 f8e0 1000 ]
+@touch-chr [
+	0000 0000 0000 0817 0000 0000 0000 0008
+	0000 0000 0000 00c0 0000 0000 0000 0000
+	1010 2010 1008 0700 0f0f 1f0f 0f07 0000
+	2010 1010 2020 c000 c0e0 e0e0 c0c0 0000
+	0000 0000 0814 1417 0000 0000 0008 0808
+	0000 0000 0000 00c0 0000 0000 0000 0000
+	1010 2010 1008 0700 0f0f 1f0f 0f07 0000
+	2010 1010 2020 c000 c0e0 e0e0 c0c0 0000 ]
 
-@button-chr 
-&up [
+@button-chr
+	&up [
 	0000 1f3f 3f3f 3f3f 001f 3f7f 7f7f 7f7f
 	0000 ffff ffff ffff 00ff ffff ffff ffff
 	0000 f8fc fcfc fcfc 00f8 fcfe fefe fefe
@@ -79,8 +102,8 @@
 	fcfc fcfc fcfc fcfc fefe fefe fefe fefe
 	3f3f 3f3f 3f1f 0000 7f7f 7f5f 4020 1f00
 	ffff ffff ffff 0000 ffff ffff 0000 ff00
-	fcfc fcfc fcf8 0000 fefe fefa 0204 f800 ] 
-&down [
+	fcfc fcfc fcf8 0000 fefe fefa 0204 f800 ]
+	&hover [
 	0000 001f 3f3f 3f3f 0000 1f3f 7f7f 7f7f
 	0000 00ff ffff ffff 0000 ffff ffff ffff
 	0000 00f8 fcfc fcfc 0000 f8fc fefe fefe
@@ -90,4 +113,14 @@
 	3f3f 3f3f 3f1f 0000 7f7f 7f7f 5f20 1f00
 	ffff ffff ffff 0000 ffff ffff ff00 ff00
 	fcfc fcfc fcf8 0000 fefe fefe fa04 f800 ]
+	&down [
+	0000 001f 3f3f 3f3f 0000 1f20 405f 7f7f
+	0000 00ff ffff ffff 0000 ff00 00ff ffff
+	0000 00f8 fcfc fcfc 0000 f804 02fa fefe
+	3f3f 3f3f 3f3f 3f3f 7f7f 7f7f 7f7f 7f7f
+	ffff ffff ffff ffff ffff ffe7 e7e7 81c3
+	fcfc fcfc fcfc fcfc fefe fefe fefe fefe
+	3f3f 3f3f 3f1f 0000 7f7f 7f7f 7f3f 1f00
+	ffff ffff ffff 0000 e7ff ffff ffff ff00
+	fcfc fcfc fcf8 0000 fefe fefe fefc f800 ]
 
