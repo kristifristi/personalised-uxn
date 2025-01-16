@@ -27,40 +27,63 @@
 	( date ) "15 20 "Jan 20 "2025 $2
 
 @on-mouse ( -> )
-	update-focus BRK
-
-@on-frame ( -> )
-	BRK
-	[ LIT2 18 &time $1 ] INCk ,&time STR
-	EQU ?{ BRK }
-	#0000 .Screen/vector DEO2
-	;button-chr/up button/<draw>
-	[ LIT2 "! 18 ] DEO
+	focus/<update>
 	BRK
 
 (
-@|drawing )
+@|focus )
 
-@update-focus ( -- )
-	<draw-cursor-touch>
-	.Mouse/x DEI2 .Mouse/y DEI2 button/is-within ?{ ;on-mouse !<set-focus> }
-	;button/on-mouse !<set-focus>
+@focus/<update> ( -- )
+	cursor/<redraw>
+	.Mouse/x DEI2 .Mouse/y DEI2
+	( test button ) button/is-within ?{ ;on-mouse !focus/<set> }
+	;button/on-mouse
+	( >> )
 
-@<set-focus> ( vector* -- )
+@focus/<set> ( vector* -- )
 	DUP2 [ LIT2 &last $2 ] NEQ2 ?{ POP2 JMP2r }
 	DUP2 .Mouse/vector DEO2
 	,&last STR2 !button/<redraw>
 
-@button/is-within ( x* y* -- f )
-	#0020 SUB2 #0018 LTH2 STH
-	#0020 SUB2 #0018 LTH2 STHr AND JMP2r
-
-@button/<redraw> ( -- )
-	.Mouse/vector DEI2 ;button/on-mouse EQU2 ?{ ;button-chr/up !button/<draw> }
-	;button-chr/hover !button/<draw>
+(
+@|button )
 
 @button/on-mouse ( -> )
-	update-focus BRK
+	focus/<update>
+	.Mouse/state DEI ?{ BRK }
+	/<press>
+	BRK
+
+@button/on-mouse-lock ( -> )
+	cursor/<redraw>
+	BRK
+
+@button/on-frame ( -> )
+	[ LIT2 18 &down $1 ] INCk ,&down STR
+	EQU ?{ BRK }
+	/<release>
+	BRK
+
+@button/<press> ( -- )
+	;&on-frame .Screen/vector DEO2
+	;&on-mouse-lock focus/<set>
+	#00 ,&down STR
+	[ LIT2 "! 18 ] DEO
+	JMP2r
+
+@button/<release> ( -- )
+	#0000 .Screen/vector DEO2
+	;&on-mouse focus/<set>
+	JMP2r
+
+@button/<redraw> ( -- )
+	;button/up-chr button/<draw>
+	.Mouse/vector DEI2
+	( | handlers )
+	DUP2 ;button/on-mouse-lock NEQ2 ?{ POP2 ;&down-chr !button/<draw> }
+	DUP2 ;button/on-mouse NEQ2 ?{ POP2 ;&hover-chr !button/<draw> }
+	POP2 ;&up-chr
+	( >> )
 
 @button/<draw> ( addr* -- )
 	[ LIT2 26 -Screen/auto ] DEO
@@ -70,28 +93,29 @@
 	[ LIT2 81 -Screen/sprite ] DEOk DEOk DEO
 	JMP2r
 
-@<draw-cursor-touch> ( -- )
-	#c5 ;touch-chr .Mouse/state DEI ?{ #0040 ADD2 }
+@button/is-within ( x* y* -- f )
+	#0020 SUB2 #0018 LTH2 STH
+	#0020 SUB2 #0018 LTH2 STHr AND JMP2r
+
+(
+@|cursor )
+
+@cursor/<redraw> ( -- )
+	( | clear )
 	;fill-icn .Screen/addr DEO2
-	#40 <draw-cursor>
+	#40 /<draw>
+	( | paint )
+	#ca ;&sprite-chr .Mouse/state DEI ?{ #0040 ADD2 }
 	.Screen/addr DEO2
-	.Mouse/x DEI2 #0004 SUB2 ,<draw-cursor>/x STR2
-	.Mouse/y DEI2 #0005 SUB2 ,<draw-cursor>/y STR2
+	.Mouse/x DEI2 #0004 SUB2 ,&x STR2
+	.Mouse/y DEI2 #0005 SUB2 ,&y STR2
 	( >> )
 
-@<draw-cursor> ( color -- )
+@cursor/<draw> ( color -- )
 	[ LIT2 16 -Screen/auto ] DEO
 	[ LIT2 &x $2 ] .Screen/x DEO2
 	[ LIT2 &y $2 ] .Screen/y DEO2
 	.Screen/sprite DEOk DEO
-	JMP2r
-
-@<phex> ( short* -: )
-	SWP /b
-	&b ( byte -: )
-	DUP #04 SFT /c
-	&c ( byte -: )
-	#0f AND DUP #09 GTH #27 MUL ADD [ LIT "0 ] ADD #18 DEO
 	JMP2r
 
 (
@@ -101,7 +125,7 @@
 	ffff ffff ffff ffff ffff ffff ffff ffff
 	ffff ffff ffff ffff ffff ffff ffff ffff ]
 
-@touch-chr [
+@cursor/sprite-chr [
 	0000 0000 0000 0817 0000 0000 0000 0008
 	0000 0000 0000 00c0 0000 0000 0000 0000
 	1010 2010 1008 0700 0f0f 1f0f 0f07 0000
@@ -111,8 +135,7 @@
 	1010 2010 1008 0700 0f0f 1f0f 0f07 0000
 	2010 1010 2020 c000 c0e0 e0e0 c0c0 0000 ]
 
-@button-chr
-	&up [
+@button/up-chr [
 	0000 1f3f 3f3f 3f3f 001f 3f7f 7f7f 7f7f
 	0000 ffff ffff ffff 00ff ffff ffff ffff
 	0000 f8fc fcfc fcfc 00f8 fcfe fefe fefe
@@ -122,7 +145,8 @@
 	3f3f 3f3f 3f1f 0000 7f7f 7f5f 4020 1f00
 	ffff ffff ffff 0000 ffff ffff 0000 ff00
 	fcfc fcfc fcf8 0000 fefe fefa 0204 f800 ]
-	&hover [
+
+@button/hover-chr [
 	0000 001f 3f3f 3f3f 0000 1f3f 7f7f 7f7f
 	0000 00ff ffff ffff 0000 ffff ffff ffff
 	0000 00f8 fcfc fcfc 0000 f8fc fefe fefe
@@ -132,14 +156,15 @@
 	3f3f 3f3f 3f1f 0000 7f7f 7f7f 5f20 1f00
 	ffff ffff ffff 0000 ffff ffff ff00 ff00
 	fcfc fcfc fcf8 0000 fefe fefe fa04 f800 ]
-	&down [
-	0000 001f 3f3f 3f3f 0000 1f20 405f 7f7f
-	0000 00ff ffff ffff 0000 ff00 00ff ffff
-	0000 00f8 fcfc fcfc 0000 f804 02fa fefe
+
+@button/down-chr [
+	0000 001f 3f3f 3f3f 0000 1f20 5f7f 7f7f
+	0000 00ff ffff ffff 0000 ff00 ffff ffff
+	0000 00f8 fcfc fcfc 0000 f804 fafe fefe
 	3f3f 3f3f 3f3f 3f3f 7f7f 7f7f 7f7f 7f7f
-	ffff ffff ffff ffff ffff ffe7 e7e7 81c3
+	ffff ffff ffff ffff ffff e7e7 e781 c3e7
 	fcfc fcfc fcfc fcfc fefe fefe fefe fefe
 	3f3f 3f3f 3f1f 0000 7f7f 7f7f 7f3f 1f00
-	ffff ffff ffff 0000 e7ff ffff ffff ff00
+	ffff ffff ffff 0000 ffff ffff ffff ff00
 	fcfc fcfc fcf8 0000 fefe fefe fefc f800 ]
 
