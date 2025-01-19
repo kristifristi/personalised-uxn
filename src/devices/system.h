@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2024 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2022-2025 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -12,10 +12,8 @@ WITH REGARD TO THIS SOFTWARE.
 #define RAM_PAGES 0x10
 
 void system_reboot(int soft);
-void system_inspect(void);
-void system_image(void);
 int system_error(char *msg, const char *err);
-int system_boot(Uint8 *ram, char *rom);
+int system_boot(Uint8 *ram, char *rompath);
 
 Uint8 system_dei(Uint8 addr);
 void system_deo(Uint8 addr);

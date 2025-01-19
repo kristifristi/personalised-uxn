@@ -30,7 +30,7 @@
 #pragma clang diagnostic pop
 
 /*
-Copyright (c) 2021-2023 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2021-2025 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -182,14 +182,6 @@ set_borderless(int value)
 	if(fullscreen) return;
 	borderless = value;
 	SDL_SetWindowBordered(emu_window, !value);
-}
-
-static void
-set_debugger(int value)
-{
-	uxn.dev[0x0e] = value;
-	screen_fill(uxn_screen.fg, 0);
-	screen_redraw();
 }
 
 /* emulator primitives */
@@ -350,7 +342,7 @@ handle_events(void)
 			else if(event.key.keysym.sym == SDLK_F1)
 				set_zoom(zoom == 3 ? 1 : zoom + 1, 1);
 			else if(event.key.keysym.sym == SDLK_F2)
-				set_debugger(!uxn.dev[0x0e]);
+				emu_deo(0xe, 0x1);
 			else if(event.key.keysym.sym == SDLK_F3)
 				uxn.dev[0x0f] = 0xff;
 			else if(event.key.keysym.sym == SDLK_F4)
@@ -398,7 +390,7 @@ handle_events(void)
 }
 
 static int
-emu_run(char *rom)
+emu_run(char *rom_path)
 {
 	Uint64 next_refresh = 0;
 	Uint64 frame_interval = SDL_GetPerformanceFrequency() / 60;
@@ -406,7 +398,7 @@ emu_run(char *rom)
 	window_created = 1;
 	if(fullscreen)
 		window_flags = window_flags | SDL_WINDOW_FULLSCREEN_DESKTOP;
-	emu_window = SDL_CreateWindow(rom,
+	emu_window = SDL_CreateWindow(rom_path,
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		(uxn_screen.width + PAD2) * zoom,
@@ -461,11 +453,11 @@ int
 main(int argc, char **argv)
 {
 	int i = 1;
-	char *rom;
+	char *rom_path;
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "18 Jan 2025.");
+			return system_error("Uxn(gui) - Varvara Emulator", "19 Jan 2025.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
@@ -475,8 +467,8 @@ main(int argc, char **argv)
 		i++;
 	}
 	/* start */
-	rom = i == argc ? "boot.rom" : argv[i++];
-	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom))
+	rom_path = i == argc ? "boot.rom" : argv[i++];
+	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom_path))
 		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	if(!emu_init())
 		return system_error("Init", "Failed to initialize varvara.");
@@ -484,7 +476,7 @@ main(int argc, char **argv)
 	uxn.dev[0x17] = argc > i;
 	if(uxn_eval(PAGE_PROGRAM)) {
 		console_listen(i, argc, argv);
-		emu_run(rom);
+		emu_run(rom_path);
 	}
 	return emu_end();
 }

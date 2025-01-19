@@ -6,7 +6,7 @@
 #include "system.h"
 
 /*
-Copyright (c) 2022-2024 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2022-2025 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -16,31 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
 
-char *boot_rom;
-
-static void
-system_zero(int soft)
-{
-	int i;
-	for(i = soft ? 0x100 : 0; i < 0x10000; i++)
-		uxn.ram[i] = 0;
-	for(i = 0x0; i < 0x100; i++)
-		uxn.dev[i] = 0;
-	uxn.wst.ptr = uxn.rst.ptr = 0;
-}
-
-static int
-system_load(Uint8 *ram, char *filename)
-{
-	FILE *f = fopen(filename, "rb");
-	if(f) {
-		int i = 0, l = fread(ram, 0x10000 - PAGE_PROGRAM, 1, f);
-		while(l && ++i < RAM_PAGES)
-			l = fread(ram + 0x10000 * i - PAGE_PROGRAM, 0x10000, 1, f);
-		fclose(f);
-	}
-	return !!f;
-}
+char *boot_path;
 
 static void
 system_print(Stack *s)
@@ -51,25 +27,6 @@ system_print(Stack *s)
 	fprintf(stderr, "< \n");
 }
 
-void
-system_inspect(void)
-{
-	fprintf(stderr, "WST "), system_print(&uxn.wst);
-	fprintf(stderr, "RST "), system_print(&uxn.rst);
-}
-
-void
-system_image(void)
-{
-	int i, len = 0;
-	FILE *f = fopen("image.rom", "wb");
-	for(i = PAGE_PROGRAM; i < 0x10000; i++)
-		if(uxn.ram[i])
-			len = i;
-	fwrite(uxn.ram + PAGE_PROGRAM, len - PAGE_PROGRAM + 1, 1, f), fclose(f);
-	printf("Saved image.rom, %d bytes\n", len);
-}
-
 int
 system_error(char *msg, const char *err)
 {
@@ -77,19 +34,35 @@ system_error(char *msg, const char *err)
 	return 0;
 }
 
+static int
+system_load(Uint8 *ram, char *rom_path)
+{
+	FILE *f = fopen(rom_path, "rb");
+	if(f) {
+		int i = 0, l = fread(ram, 0x10000 - PAGE_PROGRAM, 1, f);
+		while(l && ++i < RAM_PAGES)
+			l = fread(ram + 0x10000 * i - PAGE_PROGRAM, 0x10000, 1, f);
+		fclose(f);
+	}
+	return !!f;
+}
+
 void
 system_reboot(int soft)
 {
-	system_zero(soft);
-	if(system_load(&uxn.ram[PAGE_PROGRAM], boot_rom))
+	int i;
+	for(i = soft ? 0x100 : 0; i < 0x10000; i++) uxn.ram[i] = 0;
+	for(i = 0x0; i < 0x100; i++) uxn.dev[i] = 0;
+	uxn.wst.ptr = uxn.rst.ptr = 0;
+	if(system_load(&uxn.ram[PAGE_PROGRAM], boot_path))
 		uxn_eval(PAGE_PROGRAM);
 }
 
 int
-system_boot(Uint8 *ram, char *boot)
+system_boot(Uint8 *ram, char *rom_path)
 {
-	uxn.ram = ram, boot_rom = boot;
-	return system_load(uxn.ram + PAGE_PROGRAM, boot);
+	uxn.ram = ram, boot_path = rom_path;
+	return system_load(uxn.ram + PAGE_PROGRAM, rom_path);
 }
 
 /* IO */
@@ -144,7 +117,8 @@ system_deo(Uint8 port)
 		uxn.rst.ptr = uxn.dev[5];
 		break;
 	case 0xe:
-		system_inspect();
+		fprintf(stderr, "WST "), system_print(&uxn.wst);
+		fprintf(stderr, "RST "), system_print(&uxn.rst);
 		break;
 	}
 }
