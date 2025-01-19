@@ -26,16 +26,16 @@ typedef signed short Sint16;
 typedef unsigned int Uint32;
 
 typedef struct {
-	Uint8 *dat, ptr;
+	Uint8 dat[0x100], ptr;
 } Stack;
 
 typedef struct Uxn {
-	Uint8 *ram, *dev;
+	Uint8 *ram, dev[0x100];
 	Stack wst, rst;
 } Uxn;
 
-extern Uint8 emu_dei(Uxn *u, Uint8 addr);
-extern void emu_deo(Uxn *u, Uint8 addr, Uint8 value);
+extern Uint8 emu_dei(Uint8 addr);
+extern void emu_deo( Uint8 addr, Uint8 value);
 extern Uxn uxn;
 
-int uxn_eval(Uxn *u, Uint16 pc);
+int uxn_eval(Uint16 pc);

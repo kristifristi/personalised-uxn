@@ -80,11 +80,11 @@ audio_deo(int instance, Uint8 *d, Uint8 port)
 }
 
 Uint8
-emu_dei(Uxn *u, Uint8 addr)
+emu_dei(Uint8 addr)
 {
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
 	switch(d) {
-	case 0x00: return system_dei(u, addr);
+	case 0x00: return system_dei(addr);
 	case 0x20: return screen_dei(addr);
 	case 0x30: return audio_dei(0, &uxn.dev[d], p);
 	case 0x40: return audio_dei(1, &uxn.dev[d], p);
@@ -96,16 +96,16 @@ emu_dei(Uxn *u, Uint8 addr)
 }
 
 void
-emu_deo(Uxn *u, Uint8 addr, Uint8 value)
+emu_deo(Uint8 addr, Uint8 value)
 {
 	Uint8 p = addr & 0x0f, d = addr & 0xf0;
 	uxn.dev[addr] = value;
 	switch(d) {
 	case 0x00:
-		system_deo(u, addr);
+		system_deo(addr);
 		if(p > 0x7 && p < 0xe) screen_palette();
 		break;
-	case 0x10: console_deo(u, addr); break;
+	case 0x10: console_deo(addr); break;
 	case 0x20: screen_deo(addr); break;
 	case 0x30: audio_deo(0, &uxn.dev[d], p); break;
 	case 0x40: audio_deo(1, &uxn.dev[d], p); break;
@@ -260,7 +260,7 @@ emu_init(void)
 }
 
 static void
-emu_restart(char *drop, int soft)
+emu_restart(int soft)
 {
 	screen_resize(WIDTH, HEIGHT, uxn_screen.scale);
 	screen_fill(uxn_screen.bg, 0);
@@ -327,10 +327,6 @@ handle_events(void)
 			return 0;
 		else if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_EXPOSED)
 			emu_redraw();
-		else if(event.type == SDL_DROPFILE) {
-			emu_restart(event.drop.file, 0);
-			SDL_free(event.drop.file);
-		}
 		/* Mouse */
 		else if(event.type == SDL_MOUSEMOTION)
 			mouse_pos(clamp(event.motion.x - PAD, 0, uxn_screen.width - 1), clamp(event.motion.y - PAD, 0, uxn_screen.height - 1));
@@ -358,9 +354,9 @@ handle_events(void)
 			else if(event.key.keysym.sym == SDLK_F3)
 				uxn.dev[0x0f] = 0xff;
 			else if(event.key.keysym.sym == SDLK_F4)
-				emu_restart(NULL, 0);
+				emu_restart(0);
 			else if(event.key.keysym.sym == SDLK_F5)
-				emu_restart(NULL, 1);
+				emu_restart(1);
 			else if(event.key.keysym.sym == SDLK_F11)
 				set_fullscreen(!fullscreen, 1);
 			else if(event.key.keysym.sym == SDLK_F12)
@@ -434,7 +430,7 @@ emu_run(char *rom)
 		if(now >= next_refresh) {
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
-			uxn_eval(&uxn, uxn_screen.vector);
+			uxn_eval(uxn_screen.vector);
 			if(screen_changed())
 				emu_redraw();
 		}
@@ -458,7 +454,6 @@ emu_end(void)
 	close(0); /* make stdin thread exit */
 #endif
 	SDL_Quit();
-	free(bios.ram);
 	return exitcode;
 }
 
@@ -470,7 +465,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "3 Jan 2025.");
+			return system_error("Uxn(gui) - Varvara Emulator", "18 Jan 2025.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
@@ -487,7 +482,7 @@ main(int argc, char **argv)
 		return system_error("Init", "Failed to initialize varvara.");
 	/* loop */
 	uxn.dev[0x17] = argc > i;
-	if(uxn_eval(&uxn, PAGE_PROGRAM)) {
+	if(uxn_eval(PAGE_PROGRAM)) {
 		console_listen(i, argc, argv);
 		emu_run(rom);
 	}

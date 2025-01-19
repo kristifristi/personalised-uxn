@@ -17,7 +17,7 @@ controller_down(Uint8 mask)
 {
 	if(mask) {
 		uxn.dev[0x82] |= mask;
-		uxn_eval(&uxn, PEEK2(&uxn.dev[0x80]));
+		uxn_eval(PEEK2(&uxn.dev[0x80]));
 	}
 }
 
@@ -26,7 +26,7 @@ controller_up(Uint8 mask)
 {
 	if(mask) {
 		uxn.dev[0x82] &= (~mask);
-		uxn_eval(&uxn, PEEK2(&uxn.dev[0x80]));
+		uxn_eval(PEEK2(&uxn.dev[0x80]));
 	}
 }
 
@@ -35,7 +35,7 @@ controller_key(Uint8 key)
 {
 	if(key) {
 		uxn.dev[0x83] = key;
-		uxn_eval(&uxn, PEEK2(&uxn.dev[0x80]));
+		uxn_eval(PEEK2(&uxn.dev[0x80]));
 		uxn.dev[0x83] = 0;
 	}
 }

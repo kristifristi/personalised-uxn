@@ -16,11 +16,12 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 int
-console_input(Uint8 c, int type)
+console_input(int c, int type)
 {
-	uxn.dev[0x12] = c;
-	uxn.dev[0x17] = type;
-	return uxn_eval(&uxn, PEEK2(&uxn.dev[0x10]));
+	if(c == EOF) c = 0, type = 4;
+	uxn.dev[0x12] = c, uxn.dev[0x17] = type;
+	uxn_eval(uxn.dev[0x10] << 8 | uxn.dev[0x11]);
+	return type != 4;
 }
 
 void
@@ -34,7 +35,7 @@ console_listen(int i, int argc, char **argv)
 }
 
 void
-console_deo(Uxn *u, Uint8 addr)
+console_deo(Uint8 addr)
 {
 	FILE *fd;
 	switch(addr) {
