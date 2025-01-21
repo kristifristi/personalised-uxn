@@ -4,7 +4,7 @@
 #include "screen.h"
 
 /*
-Copyright (c) 2021-2024 Devine Lu Linvega, Andrew Alderwick
+Copyright (c) 2021-2025 Devine Lu Linvega, Andrew Alderwick
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@ WITH REGARD TO THIS SOFTWARE.
 
 UxnScreen uxn_screen;
 
-#define MAR(x) (x + 0x08)
+#define MAR(x) (x + 0x8)
 #define MAR2(x) (x + 0x10)
 
 /* c = !ch ? (color % 5 ? color >> 2 : 0) : color % 4 + ch == 1 ? 0 : (ch - 2 + (color & 3)) % 3 + 1; */
@@ -38,7 +38,7 @@ screen_changed(void)
 		uxn_screen.y2 > uxn_screen.y1;
 }
 
-void
+static void
 screen_change(int x1, int y1, int x2, int y2)
 {
 	if(x1 < uxn_screen.x1) uxn_screen.x1 = x1;
@@ -92,25 +92,22 @@ void
 screen_redraw(void)
 {
 	int i, x, y, k, l;
-	int x1 = uxn_screen.x1 < 0 ? 0 : uxn_screen.x1, y1 = uxn_screen.y1 < 0 ? 0 : uxn_screen.y1;
-	int x2 = uxn_screen.x2 > uxn_screen.width ? uxn_screen.width : uxn_screen.x2;
-	int y2 = uxn_screen.y2 > uxn_screen.height ? uxn_screen.height : uxn_screen.y2;
-	Uint32 palette[16], *pixels = uxn_screen.pixels;
-	uxn_screen.x1 = uxn_screen.y1 = 9000;
-	uxn_screen.x2 = uxn_screen.y2 = 0;
+	Uint32 palette[16];
 	for(i = 0; i < 16; i++)
 		palette[i] = uxn_screen.palette[(i >> 2) ? (i >> 2) : (i & 3)];
-	for(y = y1; y < y2; y++) {
+	for(y = uxn_screen.y1; y < uxn_screen.y2; y++) {
 		int ys = y * uxn_screen.scale;
-		for(x = x1, i = MAR(x) + MAR(y) * MAR2(uxn_screen.width); x < x2; x++, i++) {
+		for(x = uxn_screen.x1, i = MAR(x) + MAR(y) * MAR2(uxn_screen.width); x < uxn_screen.x2; x++, i++) {
 			int c = palette[uxn_screen.fg[i] << 2 | uxn_screen.bg[i]];
 			for(k = 0; k < uxn_screen.scale; k++) {
 				int oo = ((ys + k) * uxn_screen.width + x) * uxn_screen.scale;
 				for(l = 0; l < uxn_screen.scale; l++)
-					pixels[oo + l] = c;
+					uxn_screen.pixels[oo + l] = c;
 			}
 		}
 	}
+	uxn_screen.x1 = uxn_screen.y1 = 9999;
+	uxn_screen.x2 = uxn_screen.y2 = 0;
 }
 
 /* screen registers */

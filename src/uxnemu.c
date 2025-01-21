@@ -202,7 +202,6 @@ emu_resize(int width, int height)
 static void
 emu_redraw(void)
 {
-	screen_redraw();
 	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.pixels, uxn_screen.width * sizeof(Uint32)) != 0)
 		system_error("SDL_UpdateTexture", SDL_GetError());
 	SDL_RenderClear(emu_renderer);
@@ -414,7 +413,7 @@ emu_run(char *rom_path)
 			next_refresh = now + frame_interval;
 			uxn_eval(uxn_screen.vector);
 			if(uxn_screen.x2 && uxn_screen.y2 && screen_changed())
-				emu_redraw();
+				screen_redraw(), emu_redraw();
 		}
 		if(uxn_screen.vector) {
 			Uint64 delay_ms = (next_refresh - now) / ms_interval;
