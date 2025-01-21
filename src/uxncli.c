@@ -47,21 +47,12 @@ main(int argc, char **argv)
 {
 	int i = 1;
 	if(argc == 2 && argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxn(cli) - Varvara Emulator, 19 Jan 2025.\n");
+		return !fprintf(stdout, "Uxn(cli) - Varvara Emulator, 20 Jan 2025.\n");
 	else if(argc == 1)
 		return !fprintf(stdout, "usage: %s [-v] file.rom [args..]\n", argv[0]);
-	else if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++]))
+	else if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++], argc > 2))
 		return !fprintf(stdout, "Could not load %s.\n", argv[i - 1]);
-	uxn.dev[0x17] = argc > 2;
-	if(uxn_eval(PAGE_PROGRAM) && uxn.dev[0x10]) {
-		/* arguments input */
-		for(; i < argc; i++) {
-			char *p = argv[i];
-			while(*p) console_input(*p++, CONSOLE_ARG);
-			console_input('\n', i == argc - 1 ? CONSOLE_END : CONSOLE_EOA);
-		}
-		/* console input */
-		while(!uxn.dev[0x0f] && console_input(fgetc(stdin), 0x1));
-	}
+	console_arguments(i, argc, argv);
+	while(!uxn.dev[0x0f] && console_input(fgetc(stdin), 0x1));
 	return uxn.dev[0x0f] & 0x7f;
 }

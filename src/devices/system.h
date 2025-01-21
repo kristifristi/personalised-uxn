@@ -11,9 +11,9 @@ WITH REGARD TO THIS SOFTWARE.
 
 #define RAM_PAGES 0x10
 
-void system_reboot(int soft);
 int system_error(char *msg, const char *err);
-int system_boot(Uint8 *ram, char *rompath);
+int system_boot(Uint8 *ram, char *rom_path, int has_args);
+int system_reboot(int soft);
 
 Uint8 system_dei(Uint8 addr);
 void system_deo(Uint8 addr);

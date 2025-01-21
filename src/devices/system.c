@@ -27,13 +27,6 @@ system_print(Stack *s)
 	fprintf(stderr, "< \n");
 }
 
-int
-system_error(char *msg, const char *err)
-{
-	fprintf(stderr, "%s: %s\n", msg, err), fflush(stderr);
-	return 0;
-}
-
 static int
 system_load(Uint8 *ram, char *rom_path)
 {
@@ -47,22 +40,32 @@ system_load(Uint8 *ram, char *rom_path)
 	return !!f;
 }
 
-void
-system_reboot(int soft)
+int
+system_error(char *msg, const char *err)
 {
-	int i;
-	for(i = soft ? 0x100 : 0; i < 0x10000; i++) uxn.ram[i] = 0;
-	for(i = 0x0; i < 0x100; i++) uxn.dev[i] = 0;
-	uxn.wst.ptr = uxn.rst.ptr = 0;
-	if(system_load(&uxn.ram[PAGE_PROGRAM], boot_path))
-		uxn_eval(PAGE_PROGRAM);
+	fprintf(stderr, "%s: %s\n", msg, err), fflush(stderr);
+	return 0;
 }
 
 int
-system_boot(Uint8 *ram, char *rom_path)
+system_boot(Uint8 *ram, char *rom_path, int has_args)
 {
-	uxn.ram = ram, boot_path = rom_path;
-	return system_load(uxn.ram + PAGE_PROGRAM, rom_path);
+	uxn.ram = ram;
+	boot_path = rom_path;
+	uxn.dev[0x17] = has_args;
+	if(ram && system_load(uxn.ram + PAGE_PROGRAM, rom_path))
+		return uxn_eval(PAGE_PROGRAM);
+	return 0;
+}
+
+int
+system_reboot(int soft)
+{
+	int i;
+	for(i = 0x0; i < 0x100; i++) uxn.dev[i] = 0;
+	for(i = soft ? 0x100 : 0; i < 0x10000; i++) uxn.ram[i] = 0;
+	uxn.wst.ptr = uxn.rst.ptr = 0;
+	return system_boot(uxn.ram, boot_path, 0);
 }
 
 /* IO */

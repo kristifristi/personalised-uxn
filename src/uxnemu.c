@@ -468,14 +468,13 @@ main(int argc, char **argv)
 	}
 	/* start */
 	rom_path = i == argc ? "boot.rom" : argv[i++];
-	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom_path))
+	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom_path, argc > i))
 		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	if(!emu_init())
 		return system_error("Init", "Failed to initialize varvara.");
 	/* loop */
-	uxn.dev[0x17] = argc > i;
 	if(uxn_eval(PAGE_PROGRAM)) {
-		console_listen(i, argc, argv);
+		console_arguments(i, argc, argv);
 		emu_run(rom_path);
 	}
 	return emu_end();

@@ -25,11 +25,12 @@ console_input(int c, int type)
 }
 
 void
-console_listen(int i, int argc, char **argv)
+console_arguments(int i, int argc, char **argv)
 {
 	for(; i < argc; i++) {
 		char *p = argv[i];
-		while(*p) console_input(*p++, CONSOLE_ARG);
+		while(*p)
+			console_input(*p++, CONSOLE_ARG);
 		console_input('\n', i == argc - 1 ? CONSOLE_END : CONSOLE_EOA);
 	}
 }

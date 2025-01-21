@@ -15,6 +15,6 @@ WITH REGARD TO THIS SOFTWARE.
 #define CONSOLE_END 0x4
 
 int console_input(int c, int type);
-void console_listen(int i, int argc, char **argv);
+void console_arguments(int i, int argc, char **argv);
 Uint8 console_dei(Uint8 addr);
 void console_deo(Uint8 addr);
