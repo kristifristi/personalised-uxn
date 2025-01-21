@@ -30,23 +30,12 @@ static Uint8 blending[4][16] = {
 int
 screen_changed(void)
 {
-	if(uxn_screen.x1 < 0)
-		uxn_screen.x1 = 0;
-	else if(uxn_screen.x1 >= uxn_screen.width)
-		uxn_screen.x1 = uxn_screen.width;
-	if(uxn_screen.y1 < 0)
-		uxn_screen.y1 = 0;
-	else if(uxn_screen.y1 >= uxn_screen.height)
-		uxn_screen.y1 = uxn_screen.height;
-	if(uxn_screen.x2 < 0)
-		uxn_screen.x2 = 0;
-	else if(uxn_screen.x2 >= uxn_screen.width)
-		uxn_screen.x2 = uxn_screen.width;
-	if(uxn_screen.y2 < 0)
-		uxn_screen.y2 = 0;
-	else if(uxn_screen.y2 >= uxn_screen.height)
-		uxn_screen.y2 = uxn_screen.height;
-	return uxn_screen.x2 > uxn_screen.x1 && uxn_screen.y2 > uxn_screen.y1;
+	clamp(uxn_screen.x1, 0, uxn_screen.width);
+	clamp(uxn_screen.y1, 0, uxn_screen.height);
+	clamp(uxn_screen.x2, 0, uxn_screen.width);
+	clamp(uxn_screen.y2, 0, uxn_screen.height);
+	return uxn_screen.x2 > uxn_screen.x1 &&
+		uxn_screen.y2 > uxn_screen.y1;
 }
 
 void
@@ -56,14 +45,6 @@ screen_change(int x1, int y1, int x2, int y2)
 	if(y1 < uxn_screen.y1) uxn_screen.y1 = y1;
 	if(x2 > uxn_screen.x2) uxn_screen.x2 = x2;
 	if(y2 > uxn_screen.y2) uxn_screen.y2 = y2;
-}
-
-void
-screen_fill(Uint8 *layer, int color)
-{
-	int i, len = MAR2(uxn_screen.width) * uxn_screen.height;
-	for(i = 0; i < len; i++)
-		layer[i] = color;
 }
 
 void
@@ -84,36 +65,27 @@ screen_palette(void)
 void
 screen_resize(Uint16 width, Uint16 height, int scale)
 {
-	Uint8 *bg, *fg;
 	Uint32 *pixels = NULL;
-	int dim_change = uxn_screen.width != width || uxn_screen.height != height;
-	if(width < 0x8 || height < 0x8 || width >= 0x800 || height >= 0x800 || scale < 1 || scale >= 4)
-		return;
-	if(uxn_screen.width == width && uxn_screen.height == height && uxn_screen.scale == scale)
-		return;
-	if(dim_change) {
-		int wmar = MAR2(width), hmar = MAR2(height);
-		bg = malloc(wmar * hmar), fg = malloc(wmar * hmar);
-		if(bg && fg)
-			pixels = realloc(uxn_screen.pixels, width * height * sizeof(Uint32) * scale * scale);
-		if(!bg || !fg || !pixels) {
-			free(bg), free(fg);
-			return;
-		}
-		free(uxn_screen.bg), free(uxn_screen.fg);
-	} else {
-		bg = uxn_screen.bg, fg = uxn_screen.fg;
-		pixels = realloc(uxn_screen.pixels, width * height * sizeof(Uint32) * scale * scale);
-		if(!pixels)
-			return;
-	}
-	uxn_screen.bg = bg, uxn_screen.fg = fg;
+	clamp(width, 8, 0x800);
+	clamp(height, 8, 0x800);
+	clamp(scale, 1, 3);
+	/* on rescale */
+	pixels = realloc(uxn_screen.pixels, width * height * sizeof(Uint32) * scale * scale);
+	if(!pixels) return;
 	uxn_screen.pixels = pixels;
-	uxn_screen.width = width, uxn_screen.height = height, uxn_screen.scale = scale;
-	if(dim_change)
-		screen_fill(uxn_screen.bg, 0), screen_fill(uxn_screen.fg, 0);
-	emu_resize(width, height);
+	uxn_screen.scale = scale;
+	/* on resize */
+	if(uxn_screen.width != width || uxn_screen.height != height) {
+		int i, length = MAR2(width) * MAR2(height);
+		Uint8 *bg = realloc(uxn_screen.bg, length), *fg = realloc(uxn_screen.fg, length);
+		if(!bg || !fg) return;
+		uxn_screen.bg = bg, uxn_screen.fg = fg;
+		uxn_screen.width = width, uxn_screen.height = height;
+		for(i = 0; i < length; i++)
+			uxn_screen.bg[i] = uxn_screen.fg[i] = 0;
+	}
 	screen_change(0, 0, width, height);
+	emu_resize(width, height);
 }
 
 void
@@ -212,7 +184,7 @@ screen_deo(Uint8 addr)
 	case 0x2f: {
 		int ctrl = uxn.dev[0x2f];
 		int twobpp = !!(ctrl & 0x80);
-		int blend = ctrl & 0xf;
+		int blend = ctrl & 0xf, opaque = blend % 5;
 		int fx = ctrl & 0x10 ? -1 : 1, fy = ctrl & 0x20 ? -1 : 1;
 		int i, x1, x2, y1, y2, ax, ay, qx, qy, x = rX, y = rY;
 		int dxy = rDX * fy, dyx = rDY * fx, addr_incr = rMA << (1 + twobpp);
@@ -225,7 +197,7 @@ screen_deo(Uint8 addr)
 				Uint16 xmar2 = MAR2(x), ymar2 = MAR2(y);
 				if(xmar < wmar && ymar2 < hmar2) {
 					Uint8 *sprite = &uxn.ram[rA];
-					int opaque = blend % 5, by = ymar2 * wmar2;
+					int by = ymar2 * wmar2;
 					for(ay = ymar * wmar2, qy = fy < 0 ? 7 : 0; ay < by; ay += wmar2, qy += fy) {
 						int ch1 = sprite[qy], ch2 = sprite[qy + 8] << 1, bx = xmar2 + ay;
 						for(ax = xmar + ay, qx = fx > 0 ? 7 : 0; ax < bx; ax++, qx -= fx) {
@@ -241,7 +213,7 @@ screen_deo(Uint8 addr)
 				Uint16 xmar2 = MAR2(x), ymar2 = MAR2(y);
 				if(xmar < wmar && ymar2 < hmar2) {
 					Uint8 *sprite = &uxn.ram[rA];
-					int opaque = blend % 5, by = ymar2 * wmar2;
+					int by = ymar2 * wmar2;
 					for(ay = ymar * wmar2, qy = fy < 0 ? 7 : 0; ay < by; ay += wmar2, qy += fy) {
 						int ch1 = sprite[qy], bx = xmar2 + ay;
 						for(ax = xmar + ay, qx = fx > 0 ? 7 : 0; ax < bx; ax++, qx -= fx) {

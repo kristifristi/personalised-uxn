@@ -18,8 +18,6 @@ typedef struct UxnScreen {
 extern UxnScreen uxn_screen;
 extern int emu_resize(int width, int height);
 int screen_changed(void);
-void screen_change(int x1, int y1, int x2, int y2);
-void screen_fill(Uint8 *layer, int color);
 void screen_palette(void);
 void screen_resize(Uint16 width, Uint16 height, int scale);
 void screen_redraw(void);
@@ -27,4 +25,9 @@ void screen_redraw(void);
 Uint8 screen_dei(Uint8 addr);
 void screen_deo(Uint8 addr);
 
+/* clang-format off */
+
+#define clamp(v,a,b) { if(v < a) v = a; else if(v >= b) v = b; }
 #define twos(v) (v & 0x8000 ? (int)v - 0x10000 : (int)v)
+
+/* clang-format on */

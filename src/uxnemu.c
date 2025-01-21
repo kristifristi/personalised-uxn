@@ -40,8 +40,6 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
 
-#define PAD 2
-#define PAD2 4
 #define WIDTH 64 * 8
 #define HEIGHT 40 * 8
 #define TIMEOUT_MS 334
@@ -60,12 +58,6 @@ static SDL_Thread *stdin_thread;
 static int window_created, fullscreen, borderless;
 static Uint32 stdin_event, audio0_event, zoom = 1;
 static Uint64 exec_deadline, deadline_interval, ms_interval;
-
-static int
-clamp(int val, int min, int max)
-{
-	return (val >= min) ? (val <= max) ? val : max : min;
-}
 
 static void
 audio_deo(int instance, Uint8 *d, Uint8 port)
@@ -161,7 +153,7 @@ set_zoom(Uint8 z, int win)
 {
 	if(z < 1) return;
 	if(win)
-		set_window_size(emu_window, (uxn_screen.width + PAD2) * z, (uxn_screen.height + PAD2) * z);
+		set_window_size(emu_window, uxn_screen.width * z, uxn_screen.height * z);
 	zoom = z;
 }
 
@@ -193,17 +185,17 @@ emu_resize(int width, int height)
 		return 0;
 	if(emu_texture != NULL)
 		SDL_DestroyTexture(emu_texture);
-	SDL_RenderSetLogicalSize(emu_renderer, width + PAD2, height + PAD2);
+	SDL_RenderSetLogicalSize(emu_renderer, width, height);
 	emu_texture = SDL_CreateTexture(emu_renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STATIC, width, height);
 	if(emu_texture == NULL || SDL_SetTextureBlendMode(emu_texture, SDL_BLENDMODE_NONE))
 		return system_error("SDL_SetTextureBlendMode", SDL_GetError());
 	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.pixels, sizeof(Uint32)) != 0)
 		return system_error("SDL_UpdateTexture", SDL_GetError());
-	emu_viewport.x = PAD;
-	emu_viewport.y = PAD;
+	emu_viewport.x = 0;
+	emu_viewport.y = 0;
 	emu_viewport.w = uxn_screen.width;
 	emu_viewport.h = uxn_screen.height;
-	set_window_size(emu_window, (width + PAD2) * zoom, (height + PAD2) * zoom);
+	set_window_size(emu_window, width * zoom, height * zoom);
 	return 1;
 }
 
@@ -255,8 +247,6 @@ static void
 emu_restart(int soft)
 {
 	screen_resize(WIDTH, HEIGHT, uxn_screen.scale);
-	screen_fill(uxn_screen.bg, 0);
-	screen_fill(uxn_screen.fg, 0);
 	system_reboot(soft);
 	SDL_SetWindowTitle(emu_window, "Varvara");
 }
@@ -321,7 +311,7 @@ handle_events(void)
 			emu_redraw();
 		/* Mouse */
 		else if(event.type == SDL_MOUSEMOTION)
-			mouse_pos(clamp(event.motion.x - PAD, 0, uxn_screen.width - 1), clamp(event.motion.y - PAD, 0, uxn_screen.height - 1));
+			mouse_pos(event.motion.x, event.motion.y);
 		else if(event.type == SDL_MOUSEBUTTONUP)
 			mouse_up(SDL_BUTTON(event.button.button));
 		else if(event.type == SDL_MOUSEBUTTONDOWN)
@@ -401,8 +391,8 @@ emu_run(char *rom_path)
 	emu_window = SDL_CreateWindow(rom_path,
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		(uxn_screen.width + PAD2) * zoom,
-		(uxn_screen.height + PAD2) * zoom,
+		uxn_screen.width * zoom,
+		uxn_screen.height * zoom,
 		window_flags);
 	if(emu_window == NULL)
 		return system_error("sdl_window", SDL_GetError());
@@ -423,7 +413,7 @@ emu_run(char *rom_path)
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
 			uxn_eval(uxn_screen.vector);
-			if(screen_changed())
+			if(uxn_screen.x2 && uxn_screen.y2 && screen_changed())
 				emu_redraw();
 		}
 		if(uxn_screen.vector) {
@@ -457,7 +447,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "19 Jan 2025.");
+			return system_error("Uxn(gui) - Varvara Emulator", "21 Jan 2025.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))
