@@ -85,30 +85,26 @@ system_deo(Uint8 port)
 {
 	switch(port) {
 	case 0x3: {
+		Uint16 value;
 		Uint16 addr = PEEK2(uxn.dev + 2);
+		Uint8 *aptr = uxn.ram + addr;
+		Uint16 length = PEEK2(aptr + 1);
 		if(uxn.ram[addr] == 0x0) {
-			Uint16 i, value = uxn.ram[addr + 7], length = PEEK2(uxn.ram + addr + 1);
-			unsigned int dst_page = PEEK2(uxn.ram + addr + 3), dst_addr = PEEK2(uxn.ram + addr + 5);
-			unsigned int dst = dst_page * 0x10000;
-			if(dst_page < RAM_PAGES)
-				for(i = 0; i < length; i++)
-					uxn.ram[dst + (Uint16)(dst_addr + i)] = value;
+			unsigned int a = PEEK2(aptr + 3) * 0x10000 + PEEK2(aptr + 5);
+			unsigned int b = a + length;
+			value = uxn.ram[addr + 7];
+			for(; a < b; uxn.ram[a++] = value);
 		} else if(uxn.ram[addr] == 0x1) {
-			Uint16 i, length = PEEK2(uxn.ram + addr + 1);
-			unsigned int a_page = PEEK2(uxn.ram + addr + 3), a_addr = PEEK2(uxn.ram + addr + 5);
-			unsigned int b_page = PEEK2(uxn.ram + addr + 7), b_addr = PEEK2(uxn.ram + addr + 9);
-			unsigned int src = a_page * 0x10000, dst = b_page * 0x10000;
-			if(a_page < RAM_PAGES && b_page < RAM_PAGES)
-				for(i = 0; i < length; i++)
-					uxn.ram[dst + (Uint16)(b_addr + i)] = uxn.ram[src + (Uint16)(a_addr + i)];
+			unsigned int a = PEEK2(aptr + 3) * 0x10000 + PEEK2(aptr + 5);
+			unsigned int b = a + length;
+			unsigned int c = PEEK2(aptr + 7) * 0x10000 + PEEK2(aptr + 9);
+			for(; a < b; uxn.ram[c++] = uxn.ram[a++]);
 		} else if(uxn.ram[addr] == 0x2) {
-			Uint16 i, length = PEEK2(uxn.ram + addr + 1);
-			unsigned int a_page = PEEK2(uxn.ram + addr + 3), a_addr = PEEK2(uxn.ram + addr + 5);
-			unsigned int b_page = PEEK2(uxn.ram + addr + 7), b_addr = PEEK2(uxn.ram + addr + 9);
-			unsigned int src = a_page * 0x10000, dst = b_page * 0x10000;
-			if(a_page < RAM_PAGES && b_page < RAM_PAGES)
-				for(i = length - 1; i != 0xffff; i--)
-					uxn.ram[dst + (Uint16)(b_addr + i)] = uxn.ram[src + (Uint16)(a_addr + i)];
+			unsigned int a = PEEK2(aptr + 3) * 0x10000 + PEEK2(aptr + 5);
+			unsigned int b = a + length;
+			unsigned int c = PEEK2(aptr + 7) * 0x10000 + PEEK2(aptr + 9);
+			unsigned int d = c + length;
+			for(; b >= a; uxn.ram[--d] = uxn.ram[--b]);
 		} else
 			fprintf(stderr, "Unknown Expansion Command 0x%02x\n", uxn.ram[addr]);
 		break;
