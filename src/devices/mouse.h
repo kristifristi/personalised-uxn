@@ -13,3 +13,5 @@ void mouse_down(Uint8 mask);
 void mouse_up(Uint8 mask);
 void mouse_pos(Uint16 x, Uint16 y);
 void mouse_scroll(Uint16 x, Uint16 y);
+
+void mouse_deo(Uint8 addr);

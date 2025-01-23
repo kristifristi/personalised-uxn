@@ -1,8 +1,6 @@
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "../uxn.h"
-
 #include "system.h"
 
 /*
@@ -19,12 +17,13 @@ WITH REGARD TO THIS SOFTWARE.
 char *boot_path;
 
 static void
-system_print(Stack *s)
+system_print(char *name, Stack *s)
 {
 	Uint8 i;
+	fprintf(stderr, "%s ", name);
 	for(i = s->ptr - 8; i != (Uint8)(s->ptr); i++)
 		fprintf(stderr, "%02x%c", s->dat[i], i == 0xff ? '|' : ' ');
-	fprintf(stderr, "< \n");
+	fprintf(stderr, "<%02x\n", s->ptr);
 }
 
 static int
@@ -116,8 +115,8 @@ system_deo(Uint8 port)
 		uxn.rst.ptr = uxn.dev[5];
 		break;
 	case 0xe:
-		fprintf(stderr, "WST "), system_print(&uxn.wst);
-		fprintf(stderr, "RST "), system_print(&uxn.rst);
+		system_print("WST", &uxn.wst);
+		system_print("RST", &uxn.rst);
 		break;
 	}
 }

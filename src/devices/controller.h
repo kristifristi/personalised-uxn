@@ -12,3 +12,5 @@ WITH REGARD TO THIS SOFTWARE.
 void controller_down(Uint8 mask);
 void controller_up(Uint8 mask);
 void controller_key(Uint8 key);
+
+void controller_deo(Uint8 addr);

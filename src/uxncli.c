@@ -19,6 +19,7 @@ WITH REGARD TO THIS SOFTWARE.
 */
 
 Uxn uxn;
+int console_vector;
 
 Uint8
 emu_dei(Uint8 addr)
@@ -47,12 +48,14 @@ main(int argc, char **argv)
 {
 	int i = 1;
 	if(argc == 2 && argv[1][0] == '-' && argv[1][1] == 'v')
-		return !fprintf(stdout, "Uxn(cli) - Varvara Emulator, 21 Jan 2025.\n");
+		return !fprintf(stdout, "Uxn(cli) - Varvara Emulator, 23 Jan 2025.\n");
 	else if(argc == 1)
 		return !fprintf(stdout, "usage: %s [-v] file.rom [args..]\n", argv[0]);
 	else if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES, sizeof(Uint8)), argv[i++], argc > 2))
 		return !fprintf(stdout, "Could not load %s.\n", argv[i - 1]);
-	console_arguments(i, argc, argv);
-	while(!uxn.dev[0x0f] && console_input(fgetc(stdin), 0x1));
+	if(console_vector) {
+		console_arguments(i, argc, argv);
+		while(!uxn.dev[0x0f] && console_input(fgetc(stdin), 0x1));
+	}
 	return uxn.dev[0x0f] & 0x7f;
 }

@@ -12,12 +12,14 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
 WITH REGARD TO THIS SOFTWARE.
 */
 
+static int controller_vector;
+
 void
 controller_down(Uint8 mask)
 {
 	if(mask) {
 		uxn.dev[0x82] |= mask;
-		uxn_eval(PEEK2(&uxn.dev[0x80]));
+		uxn_eval(controller_vector);
 	}
 }
 
@@ -26,7 +28,7 @@ controller_up(Uint8 mask)
 {
 	if(mask) {
 		uxn.dev[0x82] &= (~mask);
-		uxn_eval(PEEK2(&uxn.dev[0x80]));
+		uxn_eval(controller_vector);
 	}
 }
 
@@ -35,7 +37,15 @@ controller_key(Uint8 key)
 {
 	if(key) {
 		uxn.dev[0x83] = key;
-		uxn_eval(PEEK2(&uxn.dev[0x80]));
+		uxn_eval(controller_vector);
 		uxn.dev[0x83] = 0;
+	}
+}
+
+void
+controller_deo(Uint8 addr)
+{
+	switch(addr) {
+	case 0x81: controller_vector = PEEK2(&uxn.dev[0x80]); break;
 	}
 }
