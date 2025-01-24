@@ -65,7 +65,7 @@ screen_palette(void)
 void
 screen_resize(Uint16 width, Uint16 height, int scale)
 {
-	Uint32 *pixels = NULL;
+	Uint32 *pixels;
 	clamp(width, 8, 0x800);
 	clamp(height, 8, 0x800);
 	clamp(scale, 1, 3);
