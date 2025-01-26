@@ -18,5 +18,5 @@ typedef signed int Sint32;
 Uint8 audio_get_vu(int instance);
 Uint16 audio_get_position(int instance);
 int audio_render(int instance, Sint16 *sample, Sint16 *end);
-void audio_start(int instance, Uint8 *d, Uxn *u);
+void audio_start(int instance, Uint8 *d);
 void audio_finished_handler(int instance);

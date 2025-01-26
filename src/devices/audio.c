@@ -72,15 +72,16 @@ audio_render(int instance, Sint16 *sample, Sint16 *end)
 }
 
 void
-audio_start(int instance, Uint8 *d, Uxn *u)
+audio_start(int instance, Uint8 *d)
 {
 	UxnAudio *c = &uxn_audio[instance];
 	Uint8 pitch = d[0xf] & 0x7f;
-	Uint16 addr = PEEK2(d + 0xc), adsr = PEEK2(d + 0x8);
+	Uint16 addr = PEEK2(d + 0xc);
+	Uint16 adsr = PEEK2(d + 0x8);
 	c->len = PEEK2(d + 0xa);
 	if(c->len > 0x10000 - addr)
 		c->len = 0x10000 - addr;
-	c->addr = &u->ram[addr];
+	c->addr = &uxn.ram[addr];
 	c->volume[0] = d[0xe] >> 4;
 	c->volume[1] = d[0xe] & 0xf;
 	c->repeat = !(d[0xf] & 0x80);
@@ -105,8 +106,8 @@ audio_start(int instance, Uint8 *d, Uxn *u)
 Uint8
 audio_get_vu(int instance)
 {
-	UxnAudio *c = &uxn_audio[instance];
 	int i;
+	UxnAudio *c = &uxn_audio[instance];
 	Sint32 sum[2] = {0, 0};
 	if(!c->advance || !c->period) return 0;
 	for(i = 0; i < 2; i++) {
@@ -120,6 +121,5 @@ audio_get_vu(int instance)
 Uint16
 audio_get_position(int instance)
 {
-	UxnAudio *c = &uxn_audio[instance];
-	return c->i;
+	return uxn_audio[instance].i;
 }
