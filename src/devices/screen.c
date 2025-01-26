@@ -50,15 +50,17 @@ screen_change(int x1, int y1, int x2, int y2)
 void
 screen_palette(void)
 {
-	int i, shift;
+	int i, shift, colors[4];
 	for(i = 0, shift = 4; i < 4; ++i, shift ^= 4) {
 		Uint8
 			r = (uxn.dev[0x8 + i / 2] >> shift) & 0xf,
 			g = (uxn.dev[0xa + i / 2] >> shift) & 0xf,
 			b = (uxn.dev[0xc + i / 2] >> shift) & 0xf;
-		uxn_screen.palette[i] = 0x0f000000 | r << 16 | g << 8 | b;
-		uxn_screen.palette[i] |= uxn_screen.palette[i] << 4;
+		colors[i] = 0x0f000000 | r << 16 | g << 8 | b;
+		colors[i] |= colors[i] << 4;
 	}
+	for(i = 0; i < 16; i++)
+		uxn_screen.palette[i] = colors[(i >> 2) ? (i >> 2) : (i & 3)];
 	screen_change(0, 0, uxn_screen.width, uxn_screen.height);
 }
 
@@ -92,13 +94,10 @@ void
 screen_redraw(void)
 {
 	int i, x, y, k, l;
-	Uint32 palette[16];
-	for(i = 0; i < 16; i++)
-		palette[i] = uxn_screen.palette[(i >> 2) ? (i >> 2) : (i & 3)];
 	for(y = uxn_screen.y1; y < uxn_screen.y2; y++) {
 		int ys = y * uxn_screen.scale;
 		for(x = uxn_screen.x1, i = MAR(x) + MAR(y) * MAR2(uxn_screen.width); x < uxn_screen.x2; x++, i++) {
-			int c = palette[uxn_screen.fg[i] << 2 | uxn_screen.bg[i]];
+			int c = uxn_screen.palette[uxn_screen.fg[i] << 2 | uxn_screen.bg[i]];
 			for(k = 0; k < uxn_screen.scale; k++) {
 				int oo = ((ys + k) * uxn_screen.width + x) * uxn_screen.scale;
 				for(l = 0; l < uxn_screen.scale; l++)

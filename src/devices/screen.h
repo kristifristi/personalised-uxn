@@ -11,7 +11,7 @@ WITH REGARD TO THIS SOFTWARE.
 
 typedef struct UxnScreen {
 	int width, height, vector, x1, y1, x2, y2, scale;
-	Uint32 palette[4], *pixels;
+	Uint32 palette[16], *pixels;
 	Uint8 *fg, *bg;
 } UxnScreen;
 
