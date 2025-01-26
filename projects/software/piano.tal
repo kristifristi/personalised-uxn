@@ -91,17 +91,10 @@ BRK
 	#1000
 	&loop
 		.adsr-view/x2 LDZ2 #003a SUB2 .Screen/x DEO2
-		( left )
-		#10 OVR SUB
-		#00 .Audio0/output DEI
-		#00 .Audio0/volume DEI #04 SFT 
-			MUL2 #08 SFT2 NIP LTH .Screen/pixel DEO
+		#10 OVR SUB .Audio0/output DEI
+			DUP2 #0f AND LTH .Screen/pixel DEO
 		.Screen/x DEI2k INC2 INC2 ROT DEO2
-		( right )
-		#10 OVR SUB
-		#00 .Audio0/output DEI
-		#00 .Audio0/volume DEI #0f AND 
-			MUL2 #08 SFT2 NIP LTH .Screen/pixel DEO
+			#04 SFT LTH .Screen/pixel DEO
 		.Screen/y DEI2k INC2 INC2 ROT DEO2
 		INC GTHk ?&loop
 	POP2
@@ -557,4 +550,3 @@ JMP2r
 	5053 5659 5c5f 6265 686b 6e71 7477 7a7d ]
 	&end
 ( pad ) [ 8080 8080 ]
-

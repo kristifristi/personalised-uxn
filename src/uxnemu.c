@@ -59,13 +59,24 @@ static int window_created, fullscreen, borderless;
 static Uint32 stdin_event, audio0_event, zoom = 1;
 static Uint64 exec_deadline, deadline_interval, ms_interval;
 
+static Uint8
+audio_dei(int instance, Uint8 *d, Uint8 port)
+{
+	if(!audio_id) return d[port];
+	switch(port) {
+	case 0x4: return audio_get_vu(instance);
+	case 0x2: POKE2(d + 0x2, audio_get_position(instance)); /* fall through */
+	default: return d[port];
+	}
+}
+
 static void
-audio_deo(int instance, Uint8 *d, Uint8 port)
+audio_deo(int instance, Uint8 *d, Uint8 port, Uxn *u)
 {
 	if(!audio_id) return;
 	if(port == 0xf) {
 		SDL_LockAudioDevice(audio_id);
-		audio_start(instance, d, &uxn);
+		audio_start(instance, d, u);
 		SDL_UnlockAudioDevice(audio_id);
 		SDL_PauseAudioDevice(audio_id, 0);
 	}
@@ -99,10 +110,10 @@ emu_deo(Uint8 addr, Uint8 value)
 		break;
 	case 0x10: console_deo(addr); break;
 	case 0x20: screen_deo(addr); break;
-	case 0x30: audio_deo(0, &uxn.dev[d], p); break;
-	case 0x40: audio_deo(1, &uxn.dev[d], p); break;
-	case 0x50: audio_deo(2, &uxn.dev[d], p); break;
-	case 0x60: audio_deo(3, &uxn.dev[d], p); break;
+	case 0x30: audio_deo(0, &uxn.dev[d], p, &uxn); break;
+	case 0x40: audio_deo(1, &uxn.dev[d], p, &uxn); break;
+	case 0x50: audio_deo(2, &uxn.dev[d], p, &uxn); break;
+	case 0x60: audio_deo(3, &uxn.dev[d], p, &uxn); break;
 	case 0x80: controller_deo(addr); break;
 	case 0x90: mouse_deo(addr); break;
 	case 0xa0: file_deo(addr); break;
@@ -111,6 +122,19 @@ emu_deo(Uint8 addr, Uint8 value)
 }
 
 /* Handlers */
+
+static void
+audio_callback(void *u, Uint8 *stream, int len)
+{
+	int instance, running = 0;
+	Sint16 *samples = (Sint16 *)stream;
+	USED(u);
+	SDL_memset(stream, 0, len);
+	for(instance = 0; instance < POLYPHONY; instance++)
+		running += audio_render(instance, samples, samples + len / 2);
+	if(!running)
+		SDL_PauseAudioDevice(audio_id, 1);
+}
 
 void
 audio_finished_handler(int instance)
@@ -219,9 +243,9 @@ emu_init(void)
 	as.freq = SAMPLE_FREQUENCY;
 	as.format = AUDIO_S16SYS;
 	as.channels = 2;
-	as.callback = audio_handler;
-	as.samples = AUDIO_BUFSIZE;
-	as.userdata = &uxn;
+	as.callback = audio_callback;
+	as.samples = 512;
+	as.userdata = NULL;
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
 		return system_error("sdl", SDL_GetError());
 	audio_id = SDL_OpenAudioDevice(NULL, 0, &as, NULL, 0);
@@ -319,6 +343,11 @@ handle_events(void)
 			mouse_down(SDL_BUTTON(event.button.button));
 		else if(event.type == SDL_MOUSEWHEEL)
 			mouse_scroll(event.wheel.x, event.wheel.y);
+		/* Audio */
+		else if(event.type >= audio0_event && event.type < audio0_event + POLYPHONY) {
+			Uint8 *port_value = &uxn.dev[0x30 + 0x10 * (event.type - audio0_event)];
+			uxn_eval(port_value[0] << 8 | port_value[1]);
+		}
 		/* Controller */
 		else if(event.type == SDL_TEXTINPUT) {
 			char *c;
