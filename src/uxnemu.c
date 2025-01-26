@@ -235,8 +235,8 @@ emu_redraw(void)
 	SDL_RenderPresent(emu_renderer);
 }
 
-static int
-emu_init(void)
+static void
+emu_init_audio(void)
 {
 	SDL_AudioSpec as;
 	SDL_zero(as);
@@ -246,15 +246,22 @@ emu_init(void)
 	as.callback = audio_callback;
 	as.samples = 512;
 	as.userdata = NULL;
-	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
-		return system_error("sdl", SDL_GetError());
 	audio_id = SDL_OpenAudioDevice(NULL, 0, &as, NULL, 0);
 	if(!audio_id)
 		system_error("sdl_audio", SDL_GetError());
+	audio0_event = SDL_RegisterEvents(POLYPHONY);
+	SDL_PauseAudioDevice(audio_id, 1);
+}
+
+static int
+emu_init(void)
+{
+	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
+		return system_error("sdl", SDL_GetError());
+	emu_init_audio();
 	if(SDL_NumJoysticks() > 0 && SDL_JoystickOpen(0) == NULL)
 		system_error("sdl_joystick", SDL_GetError());
 	stdin_event = SDL_RegisterEvents(1);
-	audio0_event = SDL_RegisterEvents(POLYPHONY);
 	SDL_DetachThread(stdin_thread = SDL_CreateThread(stdin_handler, "stdin", NULL));
 	SDL_StartTextInput();
 	SDL_ShowCursor(SDL_DISABLE);
@@ -263,7 +270,6 @@ emu_init(void)
 	ms_interval = SDL_GetPerformanceFrequency() / 1000;
 	deadline_interval = ms_interval * TIMEOUT_MS;
 	exec_deadline = SDL_GetPerformanceCounter() + deadline_interval;
-	SDL_PauseAudioDevice(audio_id, 1);
 	screen_resize(WIDTH, HEIGHT, 1);
 	return 1;
 }
@@ -454,21 +460,6 @@ emu_run(char *rom_path)
 	}
 }
 
-static int
-emu_end(void)
-{
-	int exitcode = uxn.dev[0x0f] & 0x7f;
-	SDL_CloseAudioDevice(audio_id);
-#ifdef _WIN32
-#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
-	TerminateThread((HANDLE)SDL_GetThreadID(stdin_thread), 0);
-#elif !defined(__APPLE__)
-	close(0); /* make stdin thread exit */
-#endif
-	SDL_Quit();
-	return exitcode;
-}
-
 int
 main(int argc, char **argv)
 {
@@ -486,16 +477,23 @@ main(int argc, char **argv)
 			set_fullscreen(1, 0);
 		i++;
 	}
-	/* start */
+	/* init */
 	rom_path = i == argc ? "boot.rom" : argv[i++];
-	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom_path, argc > i))
-		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
 	if(!emu_init())
 		return system_error("Init", "Failed to initialize varvara.");
-	/* loop */
-	if(uxn_eval(PAGE_PROGRAM)) {
-		console_arguments(i, argc, argv);
-		emu_run(rom_path);
-	}
-	return emu_end();
+	if(!system_boot((Uint8 *)calloc(0x10000 * RAM_PAGES + 1, sizeof(Uint8)), rom_path, argc > i))
+		return system_error("usage:", "uxnemu [-v | -f | -2x | -3x] file.rom [args...]");
+	/* start */
+	console_arguments(i, argc, argv);
+	emu_run(rom_path);
+	/* end */
+	SDL_CloseAudioDevice(audio_id);
+#ifdef _WIN32
+#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
+	TerminateThread((HANDLE)SDL_GetThreadID(stdin_thread), 0);
+#elif !defined(__APPLE__)
+	close(0); /* make stdin thread exit */
+#endif
+	SDL_Quit();
+	return uxn.dev[0x0f] & 0x7f;
 }
