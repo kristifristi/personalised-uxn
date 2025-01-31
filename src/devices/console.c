@@ -17,14 +17,12 @@ WITH REGARD TO THIS SOFTWARE.
 
 /* console registers */
 
-static int rVECTOR;
-
 int
 console_input(int c, int type)
 {
 	if(c == EOF) c = 0, type = 4;
 	uxn.dev[0x12] = c, uxn.dev[0x17] = type;
-	uxn_eval(rVECTOR);
+	uxn_eval(console_vector);
 	return type != 4;
 }
 
@@ -44,7 +42,7 @@ console_deo(Uint8 addr)
 {
 	FILE *fd;
 	switch(addr) {
-	case 0x11: rVECTOR = PEEK2(&uxn.dev[0x10]); return;
+	case 0x11: console_vector = PEEK2(&uxn.dev[0x10]); return;
 	case 0x18: fd = stdout, fputc(uxn.dev[0x18], fd), fflush(fd); break;
 	case 0x19: fd = stderr, fputc(uxn.dev[0x19], fd), fflush(fd); break;
 	}

@@ -45,6 +45,7 @@ WITH REGARD TO THIS SOFTWARE.
 #define TIMEOUT_MS 334
 
 Uxn uxn;
+int console_vector;
 
 static SDL_Window *emu_window;
 static SDL_Texture *emu_texture;
@@ -468,7 +469,7 @@ main(int argc, char **argv)
 	/* flags */
 	if(argc > 1 && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
-			return system_error("Uxn(gui) - Varvara Emulator", "21 Jan 2025.");
+			return system_error("Uxn(gui) - Varvara Emulator", "31 Jan 2025.");
 		else if(!strcmp(argv[i], "-2x"))
 			set_zoom(2, 0);
 		else if(!strcmp(argv[i], "-3x"))

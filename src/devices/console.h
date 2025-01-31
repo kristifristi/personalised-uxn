@@ -18,3 +18,5 @@ int console_input(int c, int type);
 void console_arguments(int i, int argc, char **argv);
 Uint8 console_dei(Uint8 addr);
 void console_deo(Uint8 addr);
+
+extern int console_vector;
