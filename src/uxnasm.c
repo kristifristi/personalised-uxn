@@ -456,7 +456,7 @@ build(char *rompath)
 		labels_len,
 		macro_len);
 	/* sym */
-	if(!(dstsym = fopen(sympath, "w")))
+	if(!(dstsym = fopen(sympath, "wb")))
 		return !error_top("Symbols file invalid", sympath);
 	for(i = 0; i < labels_len; i++) {
 		Uint8 hb = labels[i].addr >> 8, lb = labels[i].addr;
