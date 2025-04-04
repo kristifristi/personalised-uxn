@@ -154,18 +154,19 @@ screen_deo(Uint8 addr)
 		if(ctrl & 0x80) {
 			int x1, y1, x2, y2, ax, bx, ay, by, hor, ver;
 			if(ctrl & 0x10)
-				x1 = MAR(0), x2 = MAR(rX);
+				x1 = 0, x2 = rX;
 			else
-				x1 = MAR(rX), x2 = MAR(uxn_screen.width);
+				x1 = rX, x2 = uxn_screen.width;
 			if(ctrl & 0x20)
-				y1 = MAR(0), y2 = MAR(rY);
+				y1 = 0, y2 = rY;
 			else
-				y1 = MAR(rY), y2 = MAR(uxn_screen.height);
-			hor = x2 - x1, ver = y2 - y1;
+				y1 = rY, y2 = uxn_screen.height;
+			screen_change(x1, y1, x2, y2);
+			x1 = MAR(x1), y1 = MAR(y1);
+			hor = MAR(x2) - x1, ver = MAR(y2) - y1;
 			for(ay = y1 * len, by = ay + ver * len; ay < by; ay += len)
 				for(ax = ay + x1, bx = ax + hor; ax < bx; ax++)
 					layer[ax] = color;
-			screen_change(x1, y1, x2, y2);
 		}
 		/* pixel mode */
 		else {
