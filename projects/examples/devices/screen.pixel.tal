@@ -1,13 +1,13 @@
 ( Screen.pixel: test rom for screen pixel drawing )
 
-|00 @System &vector $2 &wst $1 &rst $1 &pad $4 &r $2 &g $2 &b $2 &debug $1 &halt $1
-|20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
+|00 @System/vector $2 &wst $1 &rst $1 &pad $4 &r $2 &g $2 &b $2 &debug $1 &halt $1
+|20 @Screen/vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
 
-|0000
+|000
 
 	@center &x $2 &y $2
 
-|0100
+|100
 
 @on-reset ( -> )
 	( | theme )
@@ -29,12 +29,12 @@
 
 @<draw-bg-fill> ( -- )
 	.center/x LDZ2 .Screen/x DEO2
-	.center/x LDZ2 .Screen/y DEO2
+	.center/y LDZ2 .Screen/y DEO2
 	( | 4-way backgrounds )
 	#0400
-	&l ( -- )
+	&>l
 		DUP DUP #40 SFT #80 ADD ORA .Screen/pixel DEO
-		INC GTHk ?&l
+		INC GTHk ?&>l
 	POP2 JMP2r
 
 @<draw-bg-corners> ( -- )
@@ -74,23 +74,23 @@
 	.center/y LDZ2 .Screen/y DEO2
 	( auto-x ) #01 .Screen/auto DEO
 	#00
-	&bl ( -- )
+	&>bl
 		#00 OVR EQU OVR #0f AND ORA ?{
 			.center/x LDZ2 #0010 SUB2 .Screen/x DEO2
 			.Screen/y DEI2k INC2 ROT DEO2 }
 		DUP #04 SFT OVR #0f AND LTH INC .Screen/pixel DEO
-		INC DUP ?&bl
+		INC DUP ?&>bl
 	POP
 	( | bottom-right, foreground )
 	.center/x LDZ2 .Screen/x DEO2
 	.center/y LDZ2 #0010 SUB2 .Screen/y DEO2
 	( auto-y ) #02 .Screen/auto DEO
 	#00
-	&br ( -- )
+	&>br
 		#00 OVR EQU OVR #0f AND ORA ?{
 			.center/y LDZ2 #0010 SUB2 .Screen/y DEO2
 			.Screen/x DEI2k INC2 ROT DEO2 }
 		DUP #04 SFT OVR #0f AND GTH INC #40 ORA .Screen/pixel DEO
-		INC DUP ?&br
+		INC DUP ?&>br
 	POP JMP2r
 
