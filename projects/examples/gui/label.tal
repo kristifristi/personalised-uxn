@@ -1,91 +1,80 @@
 ( GUI Labels )
 
-|00 @System &vector $2 &pad $6 &r $2 &g $2 &b $2
-|20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
+|00 @System/vector $2 &pad $6 &r $2 &g $2 &b $2
+|20 @Screen/vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
 
-|0000
+|000
 
-@center &x $2 &y $2
+	@center &x $2 &y $2
 
-|0100
+|100
 
-	( theme )
-	#a0dc .System/r DEO2
-	#a0dc .System/g DEO2
-	#a0dc .System/b DEO2
-
-	( find screen center )
+@on-reset ( -> )
+	( | theme )
+	#f0df .System/r DEO2
+	#f0df .System/g DEO2
+	#f0df .System/b DEO2
+	( | find screen center )
 	.Screen/width DEI2 #01 SFT2 .center/x STZ2
 	.Screen/height DEI2 #01 SFT2 .center/y STZ2
-
-	( dashed line )
-	#02 .Screen/auto DEO
+	( | dashed line )
+	[ LIT2 02 -Screen/auto ] DEO
 	#0000 .Screen/y DEO2
 	.center/x LDZ2 .Screen/x DEO2
-	.Screen/height DEI2 #0000
-	&ver
-		DUP #01 AND .Screen/pixel DEO
-		INC2 GTH2k ,&ver JCN
-	POP2 POP2
-
-	( left )
+	#0000 .Screen/height DEI2 SUB2
+	&>ver
+		DUP #01 AND INC INC .Screen/pixel DEO
+		INC2 ORAk ?&>ver
+	POP2
+	( | left )
 	.center/x LDZ2 .Screen/x DEO2
 	.center/y LDZ2 #0018 SUB2 .Screen/y DEO2
-	;left-txt ,draw-uf2 JSR
-
-	( center )
+	;left-txt uf2/<draw>
+	( | center )
 	.center/x LDZ2 .Screen/x DEO2
 	.center/y LDZ2 .Screen/y DEO2
-	;center-txt ,draw-uf2-center JSR
-
-	( right )
+	;center-txt uf2/<draw-center>
+	( | right )
 	.center/x LDZ2 .Screen/x DEO2
 	.center/y LDZ2 #0018 ADD2 .Screen/y DEO2
-	;right-txt ,draw-uf2-right JSR
+	;right-txt uf2/<draw-right>
+	BRK
 
-BRK
-
-@get-uf2-width ( text* -- width* )
-
+@uf2/get-width ( text* -- width* )
 	LIT2r 0000
-	&while
-		LDAk #0000 ROT ;font ADD2 LDA STH2 ADD2r
-		INC2 LDAk ,&while JCN
-	POP2
-	STH2r
+	&>scan
+		LDAk #0000 ROT ;&widths ADD2 LDA STH2
+		ADD2r INC2 LDAk ?&>scan
+	POP2 STH2r JMP2r
 
-JMP2r
+@uf2/<draw-center> ( text* -- )
+	DUP2 /get-width #01 SFT2 STH2
+	.Screen/x DEI2k STH2r SUB2 ROT DEO2 !/<draw>
 
-@draw-uf2-center ( text* -- )
-
-	DUP2 ,get-uf2-width JSR #01 SFT2 STH2
+@uf2/<draw-right> ( text* -- )
+	DUP2 /get-width STH2
 	.Screen/x DEI2k STH2r SUB2 ROT DEO2
-	,draw-uf2 JMP
+	( >> )
 
-@draw-uf2-right ( text* -- )
-
-	DUP2 ,get-uf2-width JSR STH2
-	.Screen/x DEI2k STH2r SUB2 ROT DEO2
-
-@draw-uf2 ( text* -- )
-
-	#15 .Screen/auto DEO
-	&while
-		LDAk #20 SUB #00 SWP
-			DUP2 #50 SFT2 ;font/glyphs ADD2 .Screen/addr DEO2
-			;font ADD2 LDA STHk #00 SWP .Screen/x DEI2 ADD2
-		#01 .Screen/sprite DEOk STHr #08 LTH ,&thin JCN DEOk &thin POP2
-		.Screen/x DEO2
-		INC2 LDAk ,&while JCN
-	POP2
-
-JMP2r
+@uf2/<draw> ( text* -- )
+	[ LIT2 15 -Screen/auto ] DEO
+	[ LIT2r 05 -Screen/sprite ]
+	&>while
+		LDAk DUP ?{ POP POP2 POP2r JMP2r }
+		#0000 ROT #20 SUB
+		( addr ) DUP2 #50 SFT2 ;&glyphs ADD2 .Screen/addr DEO2
+		( move ) ;&widths ADD2 LDA .Screen/x DEI2 ADD2
+		( draw ) [ DEOkr DEOkr ] .Screen/x DEO2
+		INC2 !&>while
 
 @left-txt "Left 20 "Aligned 20 "Label $1
+
 @center-txt "Center 20 "Aligned 20 "Label $1
+
 @right-txt "Right 20 "Aligned 20 "Label $1
 
-@font ( venice14 )
+@uf2/font ( venice14 )
+	&widths [
 	0505 0809 080c 0d05 0707 0a09 0609 0608
 	0808 0808 0908 0808 0808 0505 0708 0709
 	000d 0a08 0b0a 090a 0c08 070c 090e 0c09
@@ -99,8 +88,9 @@ JMP2r
 	0905 0000 0000 000a 0a00 080d 0d09 0e0c
 	090c 0808 0505 0000 0907 0000 0000 0000
 	0000 0000 0000 0000 0000 0000 0000 0000
-	0000 0000 0000 0000 0000 0000 0000 0000
+	0000 0000 0000 0000 0000 0000 0000 0000 ]
 	&glyphs ( starting at #20 )
+	[
 	0000 0000 0000 0000 0000 0000 0000 0000
 	0000 0000 0000 0000 0000 0000 0000 0000
 	0000 3030 3030 3030 3000 3030 0000 0000
@@ -472,4 +462,5 @@ JMP2r
 	0000 2400 0063 e363 6367 6b33 0302 0438
 	0000 0000 0000 0000 0000 0000 0000 0000
 	0000 0000 0000 0070 98ce 6438 0000 0000
-	0000 0000 0000 0000 0000 0000 0000 0000
+	0000 0000 0000 0000 0000 0000 0000 0000 ]
+
