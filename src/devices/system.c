@@ -31,9 +31,9 @@ system_load(Uint8 *ram, char *rom_path)
 {
 	FILE *f = fopen(rom_path, "rb");
 	if(f) {
-		int i = 0, l = fread(ram, 0x10000 - PAGE_PROGRAM, 1, f);
+		int i = 0, l = fread(ram, PAGE_SIZE - PAGE_PROGRAM, 1, f);
 		while(l && ++i < RAM_PAGES)
-			l = fread(ram + 0x10000 * i - PAGE_PROGRAM, 0x10000, 1, f);
+			l = fread(ram + PAGE_SIZE * i - PAGE_PROGRAM, PAGE_SIZE, 1, f);
 		fclose(f);
 	}
 	return !!f;
@@ -62,7 +62,7 @@ system_reboot(int soft)
 {
 	int i;
 	for(i = 0x0; i < 0x100; i++) uxn.dev[i] = 0;
-	for(i = soft ? 0x100 : 0; i < 0x10000; i++) uxn.ram[i] = 0;
+	for(i = soft ? 0x100 : 0; i < PAGE_SIZE; i++) uxn.ram[i] = 0;
 	uxn.wst.ptr = uxn.rst.ptr = 0;
 	return system_boot(uxn.ram, boot_path, 0);
 }
@@ -89,19 +89,19 @@ system_deo(Uint8 port)
 		Uint8 *aptr = uxn.ram + addr;
 		Uint16 length = PEEK2(aptr + 1);
 		if(uxn.ram[addr] == 0x0) {
-			unsigned int a = PEEK2(aptr + 3) * 0x10000 + PEEK2(aptr + 5);
+			unsigned int a = PEEK2(aptr + 3) * PAGE_SIZE + PEEK2(aptr + 5);
 			unsigned int b = a + length;
 			value = uxn.ram[addr + 7];
 			for(; a < b; uxn.ram[a++] = value);
 		} else if(uxn.ram[addr] == 0x1) {
-			unsigned int a = PEEK2(aptr + 3) * 0x10000 + PEEK2(aptr + 5);
+			unsigned int a = PEEK2(aptr + 3) * PAGE_SIZE + PEEK2(aptr + 5);
 			unsigned int b = a + length;
-			unsigned int c = PEEK2(aptr + 7) * 0x10000 + PEEK2(aptr + 9);
+			unsigned int c = PEEK2(aptr + 7) * PAGE_SIZE + PEEK2(aptr + 9);
 			for(; a < b; uxn.ram[c++] = uxn.ram[a++]);
 		} else if(uxn.ram[addr] == 0x2) {
-			unsigned int a = PEEK2(aptr + 3) * 0x10000 + PEEK2(aptr + 5);
+			unsigned int a = PEEK2(aptr + 3) * PAGE_SIZE + PEEK2(aptr + 5);
 			unsigned int b = a + length;
-			unsigned int c = PEEK2(aptr + 7) * 0x10000 + PEEK2(aptr + 9);
+			unsigned int c = PEEK2(aptr + 7) * PAGE_SIZE + PEEK2(aptr + 9);
 			unsigned int d = c + length;
 			for(; b >= a; uxn.ram[--d] = uxn.ram[--b]);
 		} else

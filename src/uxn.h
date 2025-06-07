@@ -18,6 +18,7 @@ WITH REGARD TO THIS SOFTWARE.
 
 #define STEP_MAX 0x80000000
 #define PAGE_PROGRAM 0x0100
+#define PAGE_SIZE 0x10000
 
 typedef unsigned char Uint8;
 typedef signed char Sint8;
