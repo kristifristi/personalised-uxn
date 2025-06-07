@@ -140,20 +140,19 @@ retry_realpath(const char *file_name)
 		return NULL;
 	}
 	if(notdriveroot(file_name)) {
-		/* TODO: use a macro instead of '/' for absolute path first character so that other systems can work */
 		/* if a relative path, prepend cwd */
 		getcwd(p, sizeof(p));
 		if(strlen(p) + strlen(DIR_SEP_STR) + fnlen >= PATH_MAX) {
 			errno = ENAMETOOLONG;
 			return NULL;
 		}
-		strcat(p, DIR_SEP_STR); /* TODO: use a macro instead of '/' for the path delimiter */
+		strcat(p, DIR_SEP_STR);
 	}
 	strcat(p, file_name);
 	while((r = realpath(p, NULL)) == NULL) {
 		if(errno != ENOENT)
 			return NULL;
-		x = strrchr(p, DIR_SEP_CHAR); /* TODO: path delimiter macro */
+		x = strrchr(p, DIR_SEP_CHAR);
 		if(x)
 			*x = '\0';
 		else
