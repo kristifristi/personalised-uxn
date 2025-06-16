@@ -93,7 +93,7 @@ system_deo(Uint8 port)
 			unsigned int src_bank = PEEK2(aptr + 3);
 			unsigned int src_addr = PEEK2(aptr + 5);
 			Uint16 value = uxn.ram[addr + 7];
-			if (src_bank < RAM_PAGES) {
+			if(src_bank < RAM_PAGES) {
 				unsigned int a = src_addr;
 				unsigned int b = a + length;
 				for(; a < b; uxn.ram[PAGE_INDEX(src_bank, a++)] = value);
@@ -103,8 +103,8 @@ system_deo(Uint8 port)
 			unsigned int src_addr = PEEK2(aptr + 5);
 			unsigned int dst_bank = PEEK2(aptr + 7);
 			unsigned int dst_addr = PEEK2(aptr + 9);
-			if (src_bank < RAM_PAGES && dst_bank < RAM_PAGES) {
-                unsigned int src_last = src_addr + length;
+			if(src_bank < RAM_PAGES && dst_bank < RAM_PAGES) {
+				unsigned int src_last = src_addr + length;
 				for(; src_addr < src_last; uxn.ram[PAGE_INDEX(dst_bank, dst_addr++)] = uxn.ram[PAGE_INDEX(src_bank, src_addr++)]);
 			}
 		} else if(uxn.ram[addr] == 0x2) {
@@ -112,7 +112,7 @@ system_deo(Uint8 port)
 			unsigned int src_addr = PEEK2(aptr + 5);
 			unsigned int dst_bank = PEEK2(aptr + 7);
 			unsigned int dst_addr = PEEK2(aptr + 9);
-			if (src_bank < RAM_PAGES && dst_bank < RAM_PAGES) {
+			if(src_bank < RAM_PAGES && dst_bank < RAM_PAGES) {
 				unsigned int src_last = src_addr + length;
 				unsigned int dst_last = dst_addr + length;
 				for(; src_last > src_addr; uxn.ram[PAGE_INDEX(dst_bank, --dst_last)] = uxn.ram[PAGE_INDEX(src_bank, --src_last)]);
