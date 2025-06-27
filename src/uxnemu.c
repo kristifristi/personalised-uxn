@@ -283,19 +283,28 @@ emu_restart(int soft)
 	SDL_SetWindowTitle(emu_window, "Varvara");
 }
 
+static SDL_KeyCode keymap[8] = {
+	SDLK_LCTRL,
+	SDLK_LALT,
+	SDLK_LSHIFT,
+	SDLK_HOME,
+	SDLK_UP,
+	SDLK_DOWN,
+	SDLK_LEFT,
+	SDLK_RIGHT,
+};
+
+
 static Uint8
 get_button(SDL_Event *event)
 {
-	switch(event->key.keysym.sym) {
-	case SDLK_LCTRL: return 0x01;
-	case SDLK_LALT: return 0x02;
-	case SDLK_LSHIFT: return 0x04;
-	case SDLK_HOME: return 0x08;
-	case SDLK_UP: return 0x10;
-	case SDLK_DOWN: return 0x20;
-	case SDLK_LEFT: return 0x40;
-	case SDLK_RIGHT: return 0x80;
-	}
+  int i = 0;
+  while(i < 8){
+    if(event->key.keysym.sym == keymap[i]){
+      return 0x01 << i;
+    }
+    ++i;
+  }
 	return 0x00;
 }
 
@@ -467,7 +476,7 @@ main(int argc, char **argv)
 	int i = 1;
 	char *rom_path;
 	/* flags */
-	if(argc > 1 && argv[i][0] == '-') {
+	while(argc > i && argv[i][0] == '-') {
 		if(!strcmp(argv[i], "-v"))
 			return system_error("Uxn(gui) - Varvara Emulator", "4 Apr 2025.");
 		else if(!strcmp(argv[i], "-2x"))
@@ -476,6 +485,17 @@ main(int argc, char **argv)
 			set_zoom(3, 0);
 		else if(strcmp(argv[i], "-f") == 0)
 			set_fullscreen(1, 0);
+    else if(strcmp(argv[i], "-c") == 0){
+      if(argc < i + 9){
+        return system_error("poor usage of controller flag","TODO more info");
+      }
+      int j = 0;
+      while(j < 8){
+        keymap[j] = SDL_GetKeyFromName(argv[i+j+1]);
+        ++j;
+      }
+      i += 8;
+    }
 		i++;
 	}
 	/* init */

@@ -93,6 +93,7 @@ screen_resize(Uint16 width, Uint16 height, int scale)
 void
 screen_redraw(void)
 {
+  
 	int i, x, y, k, l;
 	for(y = uxn_screen.y1; y < uxn_screen.y2; y++) {
 		int ys = y * uxn_screen.scale;
