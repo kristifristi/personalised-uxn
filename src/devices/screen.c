@@ -1,5 +1,5 @@
 #include <stdlib.h>
-
+#include <stdio.h>
 #include "../uxn.h"
 #include "screen.h"
 
@@ -58,9 +58,10 @@ screen_palette(void)
 			b = (uxn.dev[0xc + i / 2] >> shift) & 0xf;
 		colors[i] = 0xf000 | r << 8 | g << 4 | b;
 	}
-	for(i = 0; i < 16; i++)
-		uxn_screen.palette[i] = colors[(i >> 2) ? (i >> 2) : (i & 3)];
-	screen_change(0, 0, uxn_screen.width, uxn_screen.height);
+	for(i = 0; i < 8; i++){ 
+    uxn_screen.palette[i] = colors[i%4];
+  }
+  uxn_screen.palette[4] = 0;
 }
 
 void
@@ -70,39 +71,21 @@ screen_resize(Uint16 width, Uint16 height, int scale)
 	clamp(width, 8, 0x800);
 	clamp(height, 8, 0x800);
 	clamp(scale, 1, 3);
-	/* on rescale */
-	pixels = realloc(uxn_screen.pixels, width * height * sizeof(Uint16) * scale * scale);
-	if(!pixels) return;
-	uxn_screen.pixels = pixels;
-	uxn_screen.scale = scale;
 	/* on resize */
-	if(uxn_screen.width != width || uxn_screen.height != height) {
-		int i, length = MAR2(width) * MAR2(height);
-		Uint8 *bg = realloc(uxn_screen.bg, length), *fg = realloc(uxn_screen.fg, length);
-		if(!bg || !fg) return;
-		uxn_screen.bg = bg, uxn_screen.fg = fg;
-		uxn_screen.width = width, uxn_screen.height = height;
-		for(i = 0; i < length; i++)
-			uxn_screen.bg[i] = uxn_screen.fg[i] = 0;
+  if(uxn_screen.width != width || uxn_screen.height != height) {
+		int len = MAR2(width) * MAR2(height);
+    uxn_screen.width = width, uxn_screen.height = height;
+    
+    pixels = realloc(uxn_screen.fg, len * sizeof(Uint16));
+    if(!pixels) return;
+    uxn_screen.fg = pixels;
+
+    pixels = realloc(uxn_screen.bg, len * sizeof(Uint16));
+    if(!pixels) return;
+    uxn_screen.bg = pixels;
 	}
 	screen_change(0, 0, width, height);
 	emu_resize(width, height);
-}
-
-void
-screen_redraw(void)
-{
-	int i, x, y;
-	for(y = uxn_screen.y1; y < uxn_screen.y2; y++) {
-		int ys = y * uxn_screen.scale;
-		for(x = uxn_screen.x1, i = MAR(x) + MAR(y) * MAR2(uxn_screen.width); x < uxn_screen.x2; x++, i++) {
-			Uint16 c = uxn_screen.palette[uxn_screen.fg[i] << 2 | uxn_screen.bg[i]];
-				int oo = (ys* uxn_screen.width + x);
-					uxn_screen.pixels[oo] = c;
-		}
-	}
-	uxn_screen.x1 = uxn_screen.y1 = 9999;
-	uxn_screen.x2 = uxn_screen.y2 = 0;
 }
 
 /* screen registers */
@@ -143,9 +126,9 @@ screen_deo(Uint8 addr)
 	case 0x2d: rA = (uxn.dev[0x2c] << 8) | uxn.dev[0x2d]; return;
 	case 0x2e: {
 		int ctrl = uxn.dev[0x2e];
-		int color = ctrl & 0x3;
+		int color = uxn_screen.palette[(ctrl & 0x3)+((ctrl & 0x40) >> 4)];
 		int len = MAR2(uxn_screen.width);
-		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
+		Uint16 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
 		/* fill mode */
 		if(ctrl & 0x80) {
 			int x1, y1, x2, y2, ax, bx, ay, by, hor, ver;
@@ -157,7 +140,6 @@ screen_deo(Uint8 addr)
 				y1 = 0, y2 = rY;
 			else
 				y1 = rY, y2 = uxn_screen.height;
-			screen_change(x1, y1, x2, y2);
 			x1 = MAR(x1), y1 = MAR(y1);
 			hor = MAR(x2) - x1, ver = MAR(y2) - y1;
 			for(ay = y1 * len, by = ay + ver * len; ay < by; ay += len)
@@ -168,7 +150,6 @@ screen_deo(Uint8 addr)
 		else {
 			if(rX >= 0 && rY >= 0 && rX < len && rY < uxn_screen.height)
 				layer[MAR(rX) + MAR(rY) * len] = color;
-			screen_change(rX, rY, rX + 1, rY + 1);
 			if(rMX) rX++;
 			if(rMY) rY++;
 		}
@@ -183,7 +164,8 @@ screen_deo(Uint8 addr)
 		int wmar = MAR(uxn_screen.width), wmar2 = MAR2(uxn_screen.width);
 		int hmar2 = MAR2(uxn_screen.height);
 		int i, x1, x2, y1, y2, ax, ay, qx, qy, x = rX, y = rY;
-		Uint8 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
+		Uint16 *layer = ctrl & 0x40 ? uxn_screen.fg : uxn_screen.bg;
+    int coltype = (ctrl & 0x40) >> 4;
 		if(ctrl & 0x80) {
 			int addr_incr = rMA << 2;
 			for(i = 0; i <= rML; i++, x += dyx, y += dxy, rA += addr_incr) {
@@ -196,7 +178,7 @@ screen_deo(Uint8 addr)
 						int ch1 = sprite[qy], ch2 = sprite[qy + 8] << 1, bx = xmar2 + ay;
 						for(ax = xmar + ay, qx = qfx; ax < bx; ax++, qx -= fx) {
 							int color = ((ch1 >> qx) & 1) | ((ch2 >> qx) & 2);
-							if(opaque || color) layer[ax] = blending[color][blend];
+							if(opaque || color) layer[ax] = uxn_screen.palette[coltype+blending[color][blend]];
 						}
 					}
 				}
@@ -213,7 +195,7 @@ screen_deo(Uint8 addr)
 						int ch1 = sprite[qy], bx = xmar2 + ay;
 						for(ax = xmar + ay, qx = qfx; ax < bx; ax++, qx -= fx) {
 							int color = (ch1 >> qx) & 1;
-							if(opaque || color) layer[ax] = blending[color][blend];
+							if(opaque || color) layer[ax] = uxn_screen.palette[coltype+blending[color][blend]];
 						}
 					}
 				}

@@ -213,10 +213,10 @@ emu_resize(int width, int height)
 	if(emu_texture != NULL)
 		SDL_DestroyTexture(emu_texture);
 	SDL_RenderSetLogicalSize(emu_renderer, width, height);
-	emu_texture = SDL_CreateTexture(emu_renderer, SDL_PIXELFORMAT_RGB444, SDL_TEXTUREACCESS_STATIC, width, height);
-	if(emu_texture == NULL || SDL_SetTextureBlendMode(emu_texture, SDL_BLENDMODE_NONE))
+	emu_texture = SDL_CreateTexture(emu_renderer, SDL_PIXELFORMAT_ARGB4444, SDL_TEXTUREACCESS_STATIC, width, height);
+	if(emu_texture == NULL || SDL_SetTextureBlendMode(emu_texture, SDL_BLENDMODE_BLEND))
 		return system_error("SDL_SetTextureBlendMode", SDL_GetError());
-	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.pixels, sizeof(Uint16)) != 0)
+	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.bg,uxn_screen.width * sizeof(Uint16)) != 0)
 		return system_error("SDL_UpdateTexture", SDL_GetError());
 	emu_viewport.x = 0;
 	emu_viewport.y = 0;
@@ -229,9 +229,12 @@ emu_resize(int width, int height)
 static void
 emu_redraw(void)
 {
-	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.pixels, uxn_screen.width * sizeof(Uint16)) != 0)
+	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.bg+8+(uxn_screen.width+16)*8, (uxn_screen.width+16) * sizeof(Uint16)) != 0)
 		system_error("SDL_UpdateTexture", SDL_GetError());
 	SDL_RenderClear(emu_renderer);
+	SDL_RenderCopy(emu_renderer, emu_texture, NULL, &emu_viewport);
+	if(SDL_UpdateTexture(emu_texture, NULL, uxn_screen.fg+8+(uxn_screen.width+16)*8, (uxn_screen.width+16) * sizeof(Uint16)) != 0)
+		system_error("SDL_UpdateTexture", SDL_GetError());
 	SDL_RenderCopy(emu_renderer, emu_texture, NULL, &emu_viewport);
 	SDL_RenderPresent(emu_renderer);
 }
@@ -459,8 +462,7 @@ emu_run(char *rom_path)
 			now = SDL_GetPerformanceCounter();
 			next_refresh = now + frame_interval;
 			uxn_eval(uxn_screen.vector);
-			if(uxn_screen.x2 && uxn_screen.y2 && screen_changed())
-				screen_redraw(), emu_redraw();
+			emu_redraw();
 		}
 		if(uxn_screen.vector) {
 			Uint64 delay_ms = (next_refresh - now) / ms_interval;

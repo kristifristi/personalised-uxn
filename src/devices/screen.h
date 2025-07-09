@@ -11,8 +11,7 @@ WITH REGARD TO THIS SOFTWARE.
 
 typedef struct UxnScreen {
 	int width, height, vector, x1, y1, x2, y2, scale;
-	Uint16 palette[16], *pixels;
-	Uint8 *fg, *bg;
+	Uint16 palette[8], *fg, *bg;
 } UxnScreen;
 
 extern UxnScreen uxn_screen;
@@ -20,7 +19,6 @@ extern int emu_resize(int width, int height);
 int screen_changed(void);
 void screen_palette(void);
 void screen_resize(Uint16 width, Uint16 height, int scale);
-void screen_redraw(void);
 
 Uint8 screen_dei(Uint8 addr);
 void screen_deo(Uint8 addr);
